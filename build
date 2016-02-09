@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# By Romain François
+
+# Download recommended packages
+tools/rsync-recommended
+
+env CPPFLAGS+='-I/opt/local/include' LDFLAGS+='-L/opt/local/lib/' MAIN_LDFLAGS='-L/opt/local/lib/' ./configure --without-aqua --with-x=no --enable-maintainer-mode
+
+(cd doc/manual && make front-matter html-non-svn)
+
+# this his a hack to work around some insanity
+# it expects that you have R checked out from svn in the ~/svn/r-devel/R
+# e.g.
+# cd ~/svn
+# svn co https://svn.r-project.org/R/trunk r-devel/R
+cd ../r-devel/
+svn up
+LC_ALL=C TZ=GMT svn info | sed -n -e '/^Revision/p' -e '/^Last Changed Date/'p | cut -d' ' -f1,2,3,4 > SVN-REVISION-tmp
+mv SVN-REVISION-tmp ../r-source/SVN-REVISION
+
+cd ../r-source/
+
+make R
