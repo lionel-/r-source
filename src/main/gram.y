@@ -280,6 +280,7 @@ static SEXP	xxdefun(SEXP, SEXP, SEXP, YYLTYPE *);
 static SEXP	xxunary(SEXP, SEXP);
 static SEXP	xxbinary(SEXP, SEXP, SEXP);
 static SEXP	xxparen(SEXP, SEXP);
+static SEXP	xxbrackets(SEXP, SEXP);
 static SEXP	xxsubscript(SEXP, SEXP, SEXP);
 static SEXP	xxexprlist(SEXP, YYLTYPE *, SEXP);
 static int	xxvalue(SEXP, int, YYLTYPE *);
@@ -352,6 +353,7 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 
 	|	'{' exprlist '}'		{ $$ = xxexprlist($1,&@1,$2); setId( $$, @$); }
 	|	'(' expr_or_assign ')'		{ $$ = xxparen($1,$2);	setId( $$, @$); }
+	|	'[' sublist ']'			{ $$ = xxbrackets($1,$2);	setId( $$, @$); }
 
 	|	'-' expr %prec UMINUS		{ $$ = xxunary($1,$2);	setId( $$, @$); }
 	|	'+' expr %prec UMINUS		{ $$ = xxunary($1,$2);	setId( $$, @$); }
@@ -992,6 +994,12 @@ static SEXP xxparen(SEXP n1, SEXP n2)
     return ans;
 }
 
+static SEXP xxbrackets(SEXP expr, SEXP args)
+{
+    SEXP ans;
+    expr = install("[]");
+    return xxfuncall(expr, args);
+}
 
 /* This should probably use CONS rather than LCONS, but
    it shouldn't matter and we would rather not meddle
