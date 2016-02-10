@@ -277,6 +277,7 @@ static SEXP	xxrepeat(SEXP, SEXP);
 static SEXP	xxnxtbrk(SEXP);
 static SEXP	xxfuncall(SEXP, SEXP);
 static SEXP	xxdefun(SEXP, SEXP, SEXP, YYLTYPE *);
+static SEXP	xxlabelled(SEXP, SEXP);
 static SEXP	xxunary(SEXP, SEXP);
 static SEXP	xxbinary(SEXP, SEXP, SEXP);
 static SEXP	xxparen(SEXP, SEXP);
@@ -384,6 +385,7 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	expr RIGHT_ASSIGN expr 		{ $$ = xxbinary($2,$3,$1);	setId( $$, @$); }
 	|	FUNCTION '(' formlist ')' cr expr_or_assign %prec LOW
 						{ $$ = xxdefun($1,$3,$6,&@$); 	setId( $$, @$); }
+	|	expr '{' exprlist '}' %prec LOW { $$ = xxlabelled($1,$3);	setId( $$, @$); }
 	|	expr '(' sublist ')'		{ $$ = xxfuncall($1,$3);  setId( $$, @$); modif_token( &@1, SYMBOL_FUNCTION_CALL ) ; }
 	|	IF ifcond expr_or_assign 	{ $$ = xxif($1,$2,$3);	setId( $$, @$); }
 	|	IF ifcond expr_or_assign ELSE expr_or_assign	{ $$ = xxifelse($1,$2,$3,$5);	setId( $$, @$); }
@@ -955,6 +957,41 @@ static SEXP xxdefun(SEXP fname, SEXP formals, SEXP body, YYLTYPE *lloc)
 	PROTECT(ans = R_NilValue);
     UNPROTECT_PTR(body);
     UNPROTECT_PTR(formals);
+    return ans;
+}
+
+static SEXP xxlabelled(SEXP expr, SEXP body)
+{
+    SEXP ans;
+
+    if (GenerateCode) {
+        SET_TYPEOF(body, LANGSXP);
+        SETCAR(body, install("{"));
+
+        if (isString(expr) || isSymbol(expr)) {
+            const char *label_name;
+            if (isString(expr))
+                label_name = CHAR(STRING_ELT(expr, 0));
+            else
+                label_name = CHAR(PRINTNAME(expr));
+            char *fun_name = calloc(strlen(label_name) + 3, sizeof(char));
+            if (fun_name == NULL)
+                _("could not allocate space");
+
+            strcpy(fun_name, label_name);
+            strcat(fun_name, "{}");
+            expr = install(fun_name);
+            free(fun_name);
+        }
+
+        PROTECT(ans = lang2(expr, body));
+
+    } else {
+	PROTECT(ans = R_NilValue);
+    }
+
+    UNPROTECT_PTR(expr);
+    UNPROTECT_PTR(body);
     return ans;
 }
 
