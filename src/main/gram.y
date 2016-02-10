@@ -987,30 +987,7 @@ static SEXP xxbinary(SEXP n1, SEXP n2, SEXP n3)
     return ans;
 }
 
-static int replace_placeholder_list (SEXP lang, SEXP lhs)
-{
-    int replaced = 0;
-    SEXP cur = CAR(lang), next = CDR(lang), prev = lang;
-
-    for (; cur != R_NilValue; cur = CAR(next), next = CDR(next)) {
-        switch (TYPEOF(cur)) {
-        case SYMSXP:
-            if (strcmp(CHAR(PRINTNAME(cur)), "_") == 0) {
-                SETCAR(prev, lhs);
-                replaced = 1;
-            }
-            break;
-        case LANGSXP:
-            replace_placeholder_list(CDR(cur), lhs);
-            break;
-        default:
-            break;
-        }
-        prev = CDR(prev);
-    }
-
-    return replaced;
-}
+int replace_placeholder_list (SEXP lang, SEXP lhs);
 
 static SEXP xxpipe(SEXP lhs, SEXP rhs)
 {
@@ -1019,14 +996,14 @@ static SEXP xxpipe(SEXP lhs, SEXP rhs)
         if (TYPEOF(rhs) != LANGSXP)
             error(_("The pipe operator requires a function call as RHS"));
 
-        SEXP args = CDR(rhs);
-        int is_replaced = replace_placeholder_list(args, lhs);
-
-        if (!is_replaced)
-            args = PROTECT(lcons(lhs, args));
-
         SEXP fun = CAR(rhs);
-        PROTECT(ans = lcons(fun, args));
+        SEXP args = CDR(rhs);
+
+        int is_replaced = replace_placeholder_list(args, lhs);
+        if (is_replaced)
+            PROTECT(ans = lcons(fun, args));
+        else
+            PROTECT(ans = lcons(fun, lcons(lhs, args)));
     }
     else {
 	PROTECT(ans = R_NilValue);

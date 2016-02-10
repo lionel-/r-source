@@ -342,7 +342,8 @@ typedef enum {
     PREC_POWER	 = 14,
     PREC_SUBSET  = 15,
     PREC_DOLLAR	 = 16,
-    PREC_NS	 = 17
+    PREC_NS	 = 17,
+    PREC_PIPE1   = 18
 } PPprec;
 
 typedef struct {

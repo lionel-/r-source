@@ -408,6 +408,7 @@ SEXP do_tabulate(SEXP, SEXP, SEXP, SEXP);
 SEXP do_tempdir(SEXP, SEXP, SEXP, SEXP);
 SEXP do_tempfile(SEXP, SEXP, SEXP, SEXP);
 SEXP do_tilde(SEXP, SEXP, SEXP, SEXP);
+SEXP do_pipeop(SEXP, SEXP, SEXP, SEXP);
 SEXP do_tolower(SEXP, SEXP, SEXP, SEXP);
 SEXP do_topenv(SEXP, SEXP, SEXP, SEXP);
 SEXP do_trace(SEXP, SEXP, SEXP, SEXP);
