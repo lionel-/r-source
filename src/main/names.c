@@ -1056,6 +1056,7 @@ static void SymbolShortcuts(void)
     R_DimSymbol = install("dim");
     R_DollarSymbol = install("$");
     R_DotsSymbol = install("...");
+    R_PlaceholderSymbol = install("_");
     R_DropSymbol = install("drop");
 
     /* The last value symbol is used by the interpreter for recording
