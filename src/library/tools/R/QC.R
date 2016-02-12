@@ -61,7 +61,7 @@
 ## NB: 'tools' cannot use NAMESPACE imports from utils, as it exists first
 
 ## "The language elements" : all are .Primitive *and* print as .Primitive("...")
-langElts <- c("(", "{", ":", "~",
+langElts <- c("(", "{", ":", "~", "[]",
 	      "<-", "<<-", "=",
 	      "[", "[[", "[[<-", "[<-", "@", "@<-", "$", "$<-",
 	      "&&", "||",
