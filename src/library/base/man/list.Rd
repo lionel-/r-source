@@ -5,6 +5,7 @@
 
 \name{list}
 \alias{list}
+\alias{[]}
 \alias{pairlist}
 \alias{alist}
 \alias{as.list}
@@ -22,6 +23,7 @@
 }
 \usage{
 list(\dots)
+[\dots]
 pairlist(\dots)
 
 as.list(x, \dots)
@@ -115,6 +117,8 @@ require(graphics)
 # create a plotting structure
 pts <- list(x = cars[,1], y = cars[,2])
 plot(pts)
+
+plot([x = cars[,1], y = cars[,2]])
 
 is.pairlist(.Options)  # a user-level pairlist
 
