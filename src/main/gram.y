@@ -277,6 +277,7 @@ static SEXP	xxrepeat(SEXP, SEXP);
 static SEXP	xxnxtbrk(SEXP);
 static SEXP	xxfuncall(SEXP, SEXP);
 static SEXP	xxdefun(SEXP, SEXP, SEXP, YYLTYPE *);
+static SEXP	xxlambda(SEXP, SEXP, YYLTYPE *);
 static SEXP	xxunary(SEXP, SEXP);
 static SEXP	xxbinary(SEXP, SEXP, SEXP);
 static SEXP	xxparen(SEXP, SEXP);
@@ -354,6 +355,8 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	'{' exprlist '}'		{ $$ = xxexprlist($1,&@1,$2); setId( $$, @$); }
 	|	'(' expr_or_assign ')'		{ $$ = xxparen($1,$2);	setId( $$, @$); }
 	|	'[' sublist ']'			{ $$ = xxbrackets($1,$2);	setId( $$, @$); }
+	|	'[' sublist ']' RIGHT_ASSIGN expr
+						{ $$ = xxlambda($2,$5,&@$);	setId( $$, @$); }
 
 	|	'-' expr %prec UMINUS		{ $$ = xxunary($1,$2);	setId( $$, @$); }
 	|	'+' expr %prec UMINUS		{ $$ = xxunary($1,$2);	setId( $$, @$); }
@@ -958,6 +961,40 @@ static SEXP xxdefun(SEXP fname, SEXP formals, SEXP body, YYLTYPE *lloc)
     UNPROTECT_PTR(body);
     UNPROTECT_PTR(formals);
     return ans;
+}
+
+// Producing a formlist at the parser level would require some grammar
+// refactoring to avoid ambiguities. While not the most elegant
+// approach, transforming a sublist to a formlist is probably safest.
+static SEXP as_formlist(SEXP lang)
+{
+    // Check for nullness of CDR so we can recover the last element of
+    // the list at the end.
+    SEXP walked = lang;
+    while (!isNull(CDR(walked))) {
+        walked = CDR(walked);
+
+        if (TYPEOF(CAR(walked)) == SYMSXP) {
+            if (CAR(walked) == R_MissingArg) {
+                error(_("Lambda notation does not accept missing arguments"));
+            }
+            SET_TAG(walked, CAR(walked));
+            SETCAR(walked, R_MissingArg);
+        } else {
+            error(_("Lambda notation requires symbolic arguments"));
+        }
+    }
+
+    // Reproduce stretchy list structure
+    return CONS(walked, CDR(lang));
+}
+
+static SEXP xxlambda(SEXP args, SEXP body, YYLTYPE *lloc)
+{
+    SEXP forms = PROTECT(as_formlist(args));
+    UNPROTECT_PTR(args);
+
+    return xxdefun(install("function"), forms, body, lloc);
 }
 
 static SEXP xxunary(SEXP op, SEXP arg)
