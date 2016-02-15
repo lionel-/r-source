@@ -996,8 +996,7 @@ static SEXP xxparen(SEXP n1, SEXP n2)
 
 static SEXP xxbrackets(SEXP expr, SEXP args)
 {
-    SEXP ans;
-    expr = install("[]");
+    expr = PROTECT(install("[]"));
     return xxfuncall(expr, args);
 }
 
