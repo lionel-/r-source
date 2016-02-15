@@ -295,7 +295,7 @@ static int	xxvalue(SEXP, int, YYLTYPE *);
 %token		END_OF_INPUT ERROR
 %token		STR_CONST NUM_CONST NULL_CONST SYMBOL FUNCTION 
 %token		INCOMPLETE_STRING
-%token		LEFT_ASSIGN EQ_ASSIGN RIGHT_ASSIGN LBB
+%token		LEFT_ASSIGN EQ_ASSIGN RIGHT_ASSIGN1 RIGHT_ASSIGN2 LBB
 %token		FOR IN IF ELSE WHILE NEXT BREAK REPEAT
 %token		GT GE LT LE EQ NE AND OR AND2 OR2
 %token		NS_GET NS_GET_INT
@@ -315,7 +315,8 @@ static int	xxvalue(SEXP, int, YYLTYPE *);
 %left		ELSE
 %right		LEFT_ASSIGN
 %right		EQ_ASSIGN
-%left		RIGHT_ASSIGN
+%left		RIGHT_ASSIGN1
+%left		RIGHT_ASSIGN2
 %left		'~' TILDE
 %left		OR OR2
 %left		AND AND2
@@ -355,7 +356,7 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	'{' exprlist '}'		{ $$ = xxexprlist($1,&@1,$2); setId( $$, @$); }
 	|	'(' expr_or_assign ')'		{ $$ = xxparen($1,$2);	setId( $$, @$); }
 	|	'[' sublist ']'			{ $$ = xxbrackets($1,$2);	setId( $$, @$); }
-	|	'[' sublist ']' RIGHT_ASSIGN expr
+	|	'[' sublist ']' RIGHT_ASSIGN1 expr
 						{ $$ = xxlambda($2,$5,&@$);	setId( $$, @$); }
 
 	|	'-' expr %prec UMINUS		{ $$ = xxunary($1,$2);	setId( $$, @$); }
@@ -386,7 +387,8 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	expr OR2 expr			{ $$ = xxbinary($2,$1,$3);	setId( $$, @$); }
 
 	|	expr LEFT_ASSIGN expr 		{ $$ = xxbinary($2,$1,$3);	setId( $$, @$); }
-	|	expr RIGHT_ASSIGN expr 		{ $$ = xxbinary($2,$3,$1);	setId( $$, @$); }
+	|	expr RIGHT_ASSIGN1 expr 	{ $$ = xxbinary($2,$3,$1);	setId( $$, @$); }
+	|	expr RIGHT_ASSIGN2 expr 	{ $$ = xxbinary($2,$3,$1);	setId( $$, @$); }
 	|	FUNCTION '(' formlist ')' cr expr_or_assign %prec LOW
 						{ $$ = xxdefun($1,$3,$6,&@$); 	setId( $$, @$); }
 	|	expr '(' sublist ')'		{ $$ = xxfuncall($1,$3);  setId( $$, @$); modif_token( &@1, SYMBOL_FUNCTION_CALL ) ; }
@@ -1906,7 +1908,8 @@ static void yyerror(const char *s)
 	"NULL_CONST",	"'NULL'",
 	"FUNCTION",	"'function'",
 	"EQ_ASSIGN",	"'='",
-	"RIGHT_ASSIGN",	"'->'",
+	"RIGHT_ASSIGN1", "'->'",
+	"RIGHT_ASSIGN2", "'->>'",
 	"LBB",		"'[['",
 	"FOR",		"'for'",
 	"IN",		"'in'",
@@ -2847,11 +2850,11 @@ static int token(void)
 	if (nextchar('>')) {
 	    if (nextchar('>')) {
 		yylval = install_and_save2("<<-", "->>");
-		return RIGHT_ASSIGN;
+		return RIGHT_ASSIGN2;
 	    }
 	    else {
 		yylval = install_and_save2("<-", "->");
-		return RIGHT_ASSIGN;
+		return RIGHT_ASSIGN1;
 	    }
 	}
 	yylval = install_and_save("-");
@@ -3143,7 +3146,8 @@ static int yylex(void)
     case '$':
     case '@':
     case LEFT_ASSIGN:
-    case RIGHT_ASSIGN:
+    case RIGHT_ASSIGN1:
+    case RIGHT_ASSIGN2:
     case EQ_ASSIGN:
 	EatLines = 1;
 	break;
