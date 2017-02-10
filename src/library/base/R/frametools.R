@@ -21,8 +21,8 @@ subset.data.frame <- function (x, subset, select, drop = FALSE, ...)
     r <- if(missing(subset))
 	rep_len(TRUE, nrow(x))
     else {
-	e <- substitute(subset)
-	r <- eval(e, x, parent.frame())
+	subset <- captureArg(subset)
+	r <- eval(subset$expr, x, subset$env)
         if(!is.logical(r)) stop("'subset' must be logical")
 	r & !is.na(r)
     }
@@ -31,7 +31,8 @@ subset.data.frame <- function (x, subset, select, drop = FALSE, ...)
     else {
 	nl <- as.list(seq_along(x))
 	names(nl) <- names(x)
-	eval(substitute(select), nl, parent.frame())
+	select <- captureArg(select)
+	eval(select$expr, nl, select$env)
     }
     ## PR#15823 suggested that sometimes which(r) would be faster,
     ## but this is not intended for programmatic use and the
@@ -53,7 +54,8 @@ subset.matrix <- function(x, subset, select, drop = FALSE, ...)
     else {
 	nl <- as.list(1L:ncol(x))
 	names(nl) <- colnames(x)
-	vars <- eval(substitute(select), nl, parent.frame())
+	select <- captureArg(select)
+	vars <- eval(select$expr, nl, select$env)
     }
     if(missing(subset)) subset <- TRUE
     else if(!is.logical(subset)) stop("'subset' must be logical")
@@ -66,8 +68,10 @@ subset.matrix <- function(x, subset, select, drop = FALSE, ...)
 
 transform.data.frame <- function (`_data`, ...)
 {
-    e <- eval(substitute(list(...)), `_data`, parent.frame())
-    tags <- names(e)
+    dots <- captureDots()
+    e <- lapply(dots, function(dot) eval(dot$expr, `_data`, dot$env))
+
+    tags <- setdiff(names(e), "")
     inx <- match(tags, names(`_data`))
     matched <- !is.na(inx)
     if (any(matched)) {
