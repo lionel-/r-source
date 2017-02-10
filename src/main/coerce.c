@@ -2698,22 +2698,29 @@ SEXP attribute_hidden do_capturedots(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     int n_dots = length(dots);
     SEXP captured = PROTECT(allocVector(VECSXP, n_dots));
+    SEXP names = PROTECT(allocVector(STRSXP, n_dots));
+    setAttrib(captured, R_NamesSymbol, names);
 
     SEXP dot;
     int i = 0;
     while (i != n_dots) {
         dot = CAR(dots);
-        if (TYPEOF(dot) == PROMSXP)
+
+        if (TYPEOF(dot) == PROMSXP) {
             dot = capture_promise(dot);
-        else
+        } else {
             dot = capture_arg(dot, R_EmptyEnv);
+        }
         SET_VECTOR_ELT(captured, i, dot);
+
+        if (TAG(dots) != R_NilValue)
+            SET_STRING_ELT(names, i, PRINTNAME(TAG(dots)));
 
         ++i;
         dots = CDR(dots);
     }
 
-    UNPROTECT(1);
+    UNPROTECT(2);
     return captured;
 }
 
