@@ -295,6 +295,27 @@ curlGetHeaders <- function(url, redirect = TRUE, verify = TRUE)
 
 lengths <- function(x, use.names=TRUE) .Internal(lengths(x, use.names))
 
+captureArg <- function(x) {
+    caller_env <- parent.frame()
+
+    if (identical(caller_env, globalenv())) {
+        stop("must be called in a function")
+    }
+    if (missing(x)) {
+        stop("argument \"x\" is missing")
+    }
+
+    .Internal(captureArg(caller_env))
+}
+
+captureDots <- function() {
+    caller_env <- parent.frame()
+    if (!exists("...", caller_env)) {
+        stop("must be called in a function where dots exist")
+    }
+
+    .Internal(captureDots(caller_env))
+}
 
 ## base has no S4 generics
 .noGenerics <- TRUE

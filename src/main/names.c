@@ -155,6 +155,8 @@ FUNTAB R_FunTab[] =
 {"makeLazy",	do_makelazy,	0,	111,	5,	{PP_FUNCALL, PREC_FN,	  0}},
 {"identical",	do_identical,	0,	11,	8,	{PP_FUNCALL, PREC_FN,	  0}},
 {"C_tryCatchHelper",do_tryCatchHelper,0,11,	-1,	{PP_FUNCALL, PREC_FN,	0}},
+{"captureArg",  do_capturearg,  0,      11,     1,      {PP_FUNCALL, PREC_FN,     0}},
+{"captureDots", do_capturedots, 0,      11,     0,      {PP_FUNCALL, PREC_FN,     0}},
 
 
 /* Binary Operators, all primitives */
