@@ -2679,7 +2679,11 @@ SEXP attribute_hidden do_capturearg(SEXP call, SEXP op, SEXP args, SEXP rho)
     if (TYPEOF(arg) == PROMSXP) {
         // Get promise in caller frame
         SEXP caller_env = CAR(args);
-        arg = findVarInFrame3(caller_env, PREXPR(arg), TRUE);
+        SEXP sym = PREXPR(arg);
+        if (TYPEOF(sym) != SYMSXP)
+            error(_("\"x\" must be an argument name"));
+
+        arg = findVarInFrame3(caller_env, sym, TRUE);
         return capture_promise(arg);
     } else {
         // Argument was optimised away

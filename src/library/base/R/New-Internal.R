@@ -310,6 +310,7 @@ captureArg <- function(x) {
 
 captureDots <- function() {
     caller_env <- parent.frame()
+
     if (!exists("...", caller_env)) {
         stop("must be called in a function where dots exist")
     }
