@@ -2770,28 +2770,12 @@ SEXP attribute_hidden promiseArgs(SEXP el, SEXP rho)
 
     while(el != R_NilValue) {
 
-	/* If we have a ... symbol, we look to see what it is bound to.
-	 * If its binding is Null (i.e. zero length)
-	 * we just ignore it and return the cdr with all its
-	 * expressions promised; if it is bound to a ... list
-	 * of promises, we repromise all the promises and then splice
-	 * the list of resulting values into the return value.
-	 * Anything else bound to a ... symbol is an error
-	 */
-
-	/* Is this double promise mechanism really needed? */
-
+	// Simply forward dots found in the previous frame
 	if (CAR(el) == R_DotsSymbol) {
 	    PROTECT(h = findVar(CAR(el), rho));
-	    if (TYPEOF(h) == DOTSXP || h == R_NilValue) {
-		while (h != R_NilValue) {
-		    SETCDR(tail, CONS(mkPROMISE(CAR(h), rho), R_NilValue));
-		    tail = CDR(tail);
-		    COPY_TAG(tail, h);
-		    h = CDR(h);
-		}
-	    }
-	    else if (h != R_MissingArg)
+		if (TYPEOF(h) == DOTSXP)
+			SETCDR(tail, h);
+	    else if (h != R_MissingArg && h != R_NilValue)
 		error(_("'...' used in an incorrect context"));
 	    UNPROTECT(1); /* h */
 	}
