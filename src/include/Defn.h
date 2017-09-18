@@ -1241,6 +1241,7 @@ void begincontext(RCNTXT*, int, SEXP, SEXP, SEXP, SEXP, SEXP);
 SEXP dynamicfindVar(SEXP, RCNTXT*);
 void endcontext(RCNTXT*);
 int framedepth(RCNTXT*);
+RCNTXT* getLexicalContext(SEXP);
 void R_InsertRestartHandlers(RCNTXT *, const char *);
 void NORET R_JumpToContext(RCNTXT *, int, SEXP);
 SEXP R_syscall(int,RCNTXT*);

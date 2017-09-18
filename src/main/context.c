@@ -610,6 +610,15 @@ SEXP attribute_hidden do_sysbrowser(SEXP call, SEXP op, SEXP args, SEXP rho)
     return(rval);
 }
 
+RCNTXT *attribute_hidden getLexicalContext(SEXP env)
+{
+    RCNTXT *ctxt = R_GlobalContext;
+    while (ctxt != R_ToplevelContext &&
+	   !((ctxt->callflag & CTXT_FUNCTION) && ctxt->cloenv == env))
+	ctxt = ctxt->nextcontext;
+    return ctxt;
+}
+
 /* An implementation of S's frame access functions. They usually count */
 /* up from the globalEnv while we like to count down from the currentEnv. */
 /* So if the argument is negative count down if positive count up. */
@@ -624,14 +633,8 @@ SEXP attribute_hidden do_sys(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     checkArity(op, args);
     /* first find the context that sys.xxx needs to be evaluated in */
-    cptr = R_GlobalContext;
-    t = cptr->sysparent;
-    while (cptr != R_ToplevelContext) {
-	if (cptr->callflag & CTXT_FUNCTION )
-	    if (cptr->cloenv == t)
-		break;
-	cptr = cptr->nextcontext;
-    }
+    t = R_GlobalContext->sysparent;
+    cptr = getLexicalContext(t);
 
     if (length(args) == 1) n = asInteger(CAR(args));
 
