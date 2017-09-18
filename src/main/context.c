@@ -319,29 +319,34 @@ void endcontext(RCNTXT * cptr)
     R_GlobalContext = cptr->nextcontext;
 }
 
+RCNTXT *attribute_hidden getContext(int mask, SEXP env)
+{
+    RCNTXT *ctxt = R_GlobalContext;
+    while (ctxt != R_ToplevelContext &&
+	   !((ctxt->callflag & mask) && ctxt->cloenv == env)) {
+	ctxt = ctxt->nextcontext;
+    }
+    return ctxt;
+}
+RCNTXT *attribute_hidden getLexicalContext(SEXP env)
+{
+    return getContext(CTXT_FUNCTION, env);
+}
 
 /* findcontext - find the correct context */
 
 void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
 {
-    RCNTXT *cptr;
-    cptr = R_GlobalContext;
-    if (mask & CTXT_LOOP) {		/* break/next */
-	for (cptr = R_GlobalContext;
-	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-	     cptr = cptr->nextcontext)
-	    if (cptr->callflag & CTXT_LOOP && cptr->cloenv == env )
-		R_jumpctxt(cptr, mask, val);
-	error(_("no loop for break/next, jumping to top level"));
+    RCNTXT *ctxt = getContext(mask, env);
+
+    if (ctxt == R_ToplevelContext) {
+        if (mask & CTXT_LOOP)
+            error(_("no loop for break/next, jumping to top level"));
+        else
+            error(_("no function to return from, jumping to top level"));
     }
-    else {				/* return; or browser */
-	for (cptr = R_GlobalContext;
-	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-	     cptr = cptr->nextcontext)
-	    if ((cptr->callflag & mask) && cptr->cloenv == env)
-		R_jumpctxt(cptr, mask, val);
-	error(_("no function to return from, jumping to top level"));
-    }
+
+    R_jumpctxt(ctxt, mask, val);
 }
 
 void attribute_hidden NORET R_JumpToContext(RCNTXT *target, int mask, SEXP val)
@@ -608,15 +613,6 @@ SEXP attribute_hidden do_sysbrowser(SEXP call, SEXP op, SEXP args, SEXP rho)
 	break;
     }
     return(rval);
-}
-
-RCNTXT *attribute_hidden getLexicalContext(SEXP env)
-{
-    RCNTXT *ctxt = R_GlobalContext;
-    while (ctxt != R_ToplevelContext &&
-	   !((ctxt->callflag & CTXT_FUNCTION) && ctxt->cloenv == env))
-	ctxt = ctxt->nextcontext;
-    return ctxt;
 }
 
 /* An implementation of S's frame access functions. They usually count */
