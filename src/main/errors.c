@@ -946,7 +946,7 @@ static void jump_to_top_ex(Rboolean traceback,
 	}
     }
 
-    R_jumpctxt(R_ToplevelContext, 0, NULL);
+    R_jumptopctxt();
 }
 
 void NORET jump_to_toplevel()
@@ -1354,7 +1354,7 @@ void NORET R_JumpToToplevel(Rboolean restart)
     if (c != R_ToplevelContext)
 	warning(_("top level inconsistency?"));
 
-    R_jumpctxt(R_ToplevelContext, CTXT_TOPLEVEL, NULL);
+    R_jumptopctxt();
 }
 #endif
 

@@ -577,7 +577,8 @@ enum {
     CTXT_BROWSER  = 16,
     CTXT_GENERIC  = 20,
     CTXT_RESTART  = 32,
-    CTXT_BUILTIN  = 64  /* used in profiling */
+    CTXT_BUILTIN  = 64,  /* used in profiling */
+    CTXT_FORWARD  = 128
 };
 
 /*
@@ -592,6 +593,7 @@ RET   0 0 1 1 0 0  = 12
 GEN   0 0 1 0 1 0  = 20
 RES   0 0 0 0 0 0 1 = 32
 BUI   0 0 0 0 0 0 0 1 = 64
+FWD   0 0 0 0 0 0 0 0 1 = 128
 */
 
 #define IS_RESTART_BIT_SET(flags) ((flags) & CTXT_RESTART)
@@ -1251,6 +1253,7 @@ SEXP R_sysfunction(int,RCNTXT*);
 
 void R_run_onexits(RCNTXT *);
 void NORET R_jumpctxt(RCNTXT *, int, SEXP);
+void NORET R_jumptopctxt();
 #endif
 
 /* ../main/bind.c */

@@ -241,6 +241,22 @@ void attribute_hidden NORET R_jumpctxt(RCNTXT * targetcptr, int mask, SEXP val)
     LONGJMP(cptr->cjmpbuf, mask);
 }
 
+/* R_jumpctxt - jump to top level context but check for forwarding
+   context on the way */
+
+void attribute_hidden NORET R_jumptopctxt()
+{
+    RCNTXT *fwd_ctxt = R_GlobalContext;
+    while (fwd_ctxt != R_ToplevelContext && !(fwd_ctxt->callflag & CTXT_FORWARD))
+        fwd_ctxt = fwd_ctxt->nextcontext;
+
+    if (fwd_ctxt != R_ToplevelContext) {
+        fwd_ctxt->jumptarget = R_ToplevelContext;
+        R_jumpctxt(fwd_ctxt, 0, NULL);
+    } else {
+        R_jumpctxt(R_ToplevelContext, 0, NULL);
+    }
+}
 
 /* begincontext - begin an execution context */
 
@@ -324,8 +340,9 @@ void endcontext(RCNTXT * cptr)
 
 void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
 {
-    RCNTXT *cptr;
-    cptr = R_GlobalContext;
+    RCNTXT *cptr = R_GlobalContext;
+    RCNTXT *forwarding_cptr = NULL;
+
     if (mask & CTXT_LOOP) {		/* break/next */
 	for (cptr = R_GlobalContext;
 	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
@@ -337,13 +354,26 @@ void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
     else {				/* return; or browser */
 	for (cptr = R_GlobalContext;
 	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-	     cptr = cptr->nextcontext)
-	    if ((cptr->callflag & mask) && cptr->cloenv == env)
-		R_jumpctxt(cptr, mask, val);
+             cptr = cptr->nextcontext) {
+            if (cptr->callflag & CTXT_FORWARD) {
+                if (forwarding_cptr != NULL)
+                    error(_("cannot forward context twice, jumping to top level"));
+                forwarding_cptr = cptr;
+            }
+            if ((cptr->callflag & mask) && cptr->cloenv == env) {
+                if (forwarding_cptr == NULL) {
+                    R_jumpctxt(cptr, mask, val);
+                } else {
+                    forwarding_cptr->jumptarget = cptr;
+                    R_jumpctxt(forwarding_cptr, mask, val);
+                }
+            }
+        }
 	error(_("no function to return from, jumping to top level"));
     }
 }
 
+// TODO
 void attribute_hidden NORET R_JumpToContext(RCNTXT *target, int mask, SEXP val)
 {
     RCNTXT *cptr;
@@ -773,7 +803,30 @@ Rboolean R_ToplevelExec(void (*fun)(void *), void *data)
     return result;
 }
 
+Rboolean R_ForwardExec(void (*fun)(void *), void *data, void *ctxt) {
+    RCNTXT thiscontext;
+    Rboolean result;
 
+    begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
+                 R_BaseEnv, R_NilValue, R_NilValue);
+    if (SETJMP(thiscontext.cjmpbuf)) {
+        RCNTXT *forwarded_ctxt = ctxt;
+        forwarded_ctxt->jumptarget = thiscontext.jumptarget;
+        thiscontext.jumptarget = NULL;
+        result = FALSE;
+    } else {
+        fun(data);
+        result = TRUE;
+    }
+    endcontext(&thiscontext);
+
+    return result;
+}
+
+/* Get context handle that can be supplied to R_ForwardExec() */
+void *R_getContextHandle() {
+    return R_GlobalContext;
+}
 
 /*
   This is a simple interface for evaluating R expressions
@@ -827,6 +880,27 @@ R_tryEval(SEXP e, SEXP env, int *ErrorOccurred)
 	data.val = NULL;
     else
 	UNPROTECT(1);
+
+    return(data.val);
+}
+SEXP
+R_tryEvalForward(SEXP e, SEXP env, int *ErrorOccurred, void *ctxt)
+{
+    Rboolean ok;
+    ProtectedEvalData data;
+
+    data.expression = e;
+    data.val = NULL;
+    data.env = env;
+
+    ok = R_ForwardExec(protectedEval, &data, ctxt);
+    if (ErrorOccurred) {
+        *ErrorOccurred = (ok == FALSE);
+    }
+    if (ok == FALSE)
+        data.val = NULL;
+    else
+        UNPROTECT(1);
 
     return(data.val);
 }
