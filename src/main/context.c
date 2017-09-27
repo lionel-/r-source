@@ -327,10 +327,17 @@ void endcontext(RCNTXT * cptr)
     }
     if (R_ExitContext == cptr)
 	R_ExitContext = NULL;
+
     /* continue jumping if this was reached as an intermetiate jump */
-    if (jumptarget)
-	/* cptr->returnValue is undefined */
-	R_jumpctxt(jumptarget, cptr->jumpmask, R_ReturnedValue);
+    if (jumptarget) {
+        // A longjump-forwarding frame might have set a returnValue
+        SEXP val;
+        if (cptr->returnValue)
+            val = cptr->returnValue;
+        else
+            val = R_ReturnedValue;
+	R_jumpctxt(jumptarget, cptr->jumpmask, val);
+    }
 
     R_GlobalContext = cptr->nextcontext;
 }
@@ -365,6 +372,7 @@ void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
                     R_jumpctxt(cptr, mask, val);
                 } else {
                     forwarding_cptr->jumptarget = cptr;
+                    forwarding_cptr->jumpmask = mask;
                     R_jumpctxt(forwarding_cptr, mask, val);
                 }
             }
@@ -812,6 +820,8 @@ Rboolean R_ForwardExec(void (*fun)(void *), void *data, void *ctxt) {
     if (SETJMP(thiscontext.cjmpbuf)) {
         RCNTXT *forwarded_ctxt = ctxt;
         forwarded_ctxt->jumptarget = thiscontext.jumptarget;
+        // Save return value because R code might run in C++ destructors
+        forwarded_ctxt->returnValue = R_ReturnedValue;
         thiscontext.jumptarget = NULL;
         result = FALSE;
     } else {
