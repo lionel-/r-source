@@ -343,12 +343,47 @@ void endcontext(RCNTXT * cptr)
 }
 
 
+/* getjumpcontext - get jump context, minding for longjump-forwarding contexts */
+
+RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
+    RCNTXT *ctxt = R_GlobalContext;
+    RCNTXT *fwd_ctxt = NULL;
+
+    while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
+        if (ctxt->callflag & CTXT_FORWARD) {
+            if (fwd_ctxt != NULL)
+                error(_("cannot forward long jump twice, jumping to top level"));
+            else
+                fwd_ctxt = ctxt;
+        }
+
+        if ((ctxt->callflag & mask) &&
+            (env == NULL || ctxt->cloenv == env) &&
+            (target == NULL || target == ctxt)) {
+            // If we found a lonjump-forwarding context on the stack,
+            // we set its jump target to the actual target and we jump
+            // to the forwarding context as an intermediate step
+            if (fwd_ctxt == NULL) {
+                return ctxt;
+            } else {
+                fwd_ctxt->jumptarget = ctxt;
+                fwd_ctxt->jumpmask = mask;
+                return fwd_ctxt;
+            }
+        }
+
+        ctxt = ctxt->nextcontext;
+    }
+
+    return NULL;
+};
+
+
 /* findcontext - find the correct context */
 
 void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
 {
-    RCNTXT *cptr = R_GlobalContext;
-    RCNTXT *forwarding_cptr = NULL;
+    RCNTXT *cptr;
 
     if (mask & CTXT_LOOP) {		/* break/next */
 	for (cptr = R_GlobalContext;
@@ -359,41 +394,28 @@ void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
 	error(_("no loop for break/next, jumping to top level"));
     }
     else {				/* return; or browser */
-	for (cptr = R_GlobalContext;
-	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-             cptr = cptr->nextcontext) {
-            if (cptr->callflag & CTXT_FORWARD) {
-                if (forwarding_cptr != NULL)
-                    error(_("cannot forward context twice, jumping to top level"));
-                forwarding_cptr = cptr;
-            }
-            if ((cptr->callflag & mask) && cptr->cloenv == env) {
-                if (forwarding_cptr == NULL) {
-                    R_jumpctxt(cptr, mask, val);
-                } else {
-                    forwarding_cptr->jumptarget = cptr;
-                    forwarding_cptr->jumpmask = mask;
-                    R_jumpctxt(forwarding_cptr, mask, val);
-                }
-            }
-        }
-	error(_("no function to return from, jumping to top level"));
+        cptr = getjumpcontext(mask, env, NULL);
+        if (cptr == NULL)
+            error(_("no function to return from, jumping to top level"));
+        else
+            R_jumpctxt(cptr, mask, val);
     }
 }
 
-// TODO
 void attribute_hidden NORET R_JumpToContext(RCNTXT *target, int mask, SEXP val)
 {
-    RCNTXT *cptr;
-    for (cptr = R_GlobalContext;
-	 cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-	 cptr = cptr->nextcontext) {
-	if (cptr == target)
-	    R_jumpctxt(cptr, mask, val);
-	if (cptr == R_ExitContext)
-	    R_ExitContext = NULL;
+    RCNTXT *cptr = getjumpcontext(mask, NULL, target);
+    if (cptr == NULL)
+        error(_("target context is not on the stack"));
+
+    RCNTXT *c = R_GlobalContext;
+    while (c != cptr) {
+        if (c == R_ExitContext)
+            R_ExitContext = NULL;
+        c = c->nextcontext;
     }
-    error(_("target context is not on the stack"));
+
+    R_jumpctxt(cptr, mask, val);
 }
 
 
