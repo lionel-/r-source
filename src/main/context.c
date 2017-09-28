@@ -241,21 +241,51 @@ void attribute_hidden NORET R_jumpctxt(RCNTXT * targetcptr, int mask, SEXP val)
     LONGJMP(cptr->cjmpbuf, mask);
 }
 
-/* R_jumpctxt - jump to top level context but check for forwarding
-   context on the way */
+/* getjumpcontext - get jump context, minding for longjump-forwarding contexts */
+
+RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
+    RCNTXT *ctxt = R_GlobalContext;
+    RCNTXT *fwd_ctxt = NULL;
+
+    while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
+        if (ctxt->callflag & CTXT_FORWARD) {
+            if (fwd_ctxt != NULL)
+                error(_("cannot forward long jump twice, jumping to top level"));
+            else
+                fwd_ctxt = ctxt;
+        }
+
+        if ((ctxt->callflag & mask) &&
+            (env == NULL || ctxt->cloenv == env) &&
+            (target == NULL || target == ctxt)) {
+            // If we found a lonjump-forwarding context on the stack,
+            // we set its jump target to the actual target and we jump
+            // to the forwarding context as an intermediate step
+            if (fwd_ctxt == NULL) {
+                return ctxt;
+            } else {
+                fwd_ctxt->jumptarget = ctxt;
+                fwd_ctxt->jumpmask = mask;
+                return fwd_ctxt;
+            }
+        }
+
+        ctxt = ctxt->nextcontext;
+    }
+
+    return NULL;
+};
+
+/* R_jumptopctxt - jump to top level context, possibly with intermediate steps */
 
 void attribute_hidden NORET R_jumptopctxt()
 {
-    RCNTXT *fwd_ctxt = R_GlobalContext;
-    while (fwd_ctxt != R_ToplevelContext && !(fwd_ctxt->callflag & CTXT_FORWARD))
-        fwd_ctxt = fwd_ctxt->nextcontext;
+    RCNTXT *ctxt = getjumpcontext(CTXT_TOPLEVEL, NULL, NULL);
 
-    if (fwd_ctxt != R_ToplevelContext) {
-        fwd_ctxt->jumptarget = R_ToplevelContext;
-        R_jumpctxt(fwd_ctxt, 0, NULL);
-    } else {
-        R_jumpctxt(R_ToplevelContext, 0, NULL);
-    }
+    if (ctxt == NULL)
+        R_jumpctxt(R_ToplevelContext, CTXT_TOPLEVEL, NULL);
+    else
+        R_jumpctxt(ctxt, CTXT_TOPLEVEL, NULL);
 }
 
 /* begincontext - begin an execution context */
@@ -341,42 +371,6 @@ void endcontext(RCNTXT * cptr)
 
     R_GlobalContext = cptr->nextcontext;
 }
-
-
-/* getjumpcontext - get jump context, minding for longjump-forwarding contexts */
-
-RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
-    RCNTXT *ctxt = R_GlobalContext;
-    RCNTXT *fwd_ctxt = NULL;
-
-    while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
-        if (ctxt->callflag & CTXT_FORWARD) {
-            if (fwd_ctxt != NULL)
-                error(_("cannot forward long jump twice, jumping to top level"));
-            else
-                fwd_ctxt = ctxt;
-        }
-
-        if ((ctxt->callflag & mask) &&
-            (env == NULL || ctxt->cloenv == env) &&
-            (target == NULL || target == ctxt)) {
-            // If we found a lonjump-forwarding context on the stack,
-            // we set its jump target to the actual target and we jump
-            // to the forwarding context as an intermediate step
-            if (fwd_ctxt == NULL) {
-                return ctxt;
-            } else {
-                fwd_ctxt->jumptarget = ctxt;
-                fwd_ctxt->jumpmask = mask;
-                return fwd_ctxt;
-            }
-        }
-
-        ctxt = ctxt->nextcontext;
-    }
-
-    return NULL;
-};
 
 
 /* findcontext - find the correct context */
