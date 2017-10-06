@@ -827,14 +827,15 @@ Rboolean R_ToplevelExec(void (*fun)(void *), void *data)
     return result;
 }
 
-Rboolean R_ForwardExec(void (*fun)(void *), void *data, void *ctxt) {
+Rboolean R_ForwardExec(void (*fun)(void *), void *data) {
     RCNTXT thiscontext;
     Rboolean result;
+
+    RCNTXT *forwarded_ctxt = R_GlobalContext;
 
     begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
                  R_BaseEnv, R_NilValue, R_NilValue);
     if (SETJMP(thiscontext.cjmpbuf)) {
-        RCNTXT *forwarded_ctxt = ctxt;
         forwarded_ctxt->jumptarget = thiscontext.jumptarget;
         // Save return value because R code might run in C++ destructors
         forwarded_ctxt->returnValue = R_ReturnedValue;
@@ -847,11 +848,6 @@ Rboolean R_ForwardExec(void (*fun)(void *), void *data, void *ctxt) {
     endcontext(&thiscontext);
 
     return result;
-}
-
-/* Get context handle that can be supplied to R_ForwardExec() */
-void *R_getContextHandle() {
-    return R_GlobalContext;
 }
 
 /*
@@ -910,7 +906,7 @@ R_tryEval(SEXP e, SEXP env, int *ErrorOccurred)
     return(data.val);
 }
 SEXP
-R_tryEvalForward(SEXP e, SEXP env, int *ErrorOccurred, void *ctxt)
+R_tryEvalForward(SEXP e, SEXP env, int *ErrorOccurred)
 {
     Rboolean ok;
     ProtectedEvalData data;
@@ -919,7 +915,7 @@ R_tryEvalForward(SEXP e, SEXP env, int *ErrorOccurred, void *ctxt)
     data.val = NULL;
     data.env = env;
 
-    ok = R_ForwardExec(protectedEval, &data, ctxt);
+    ok = R_ForwardExec(protectedEval, &data);
     if (ErrorOccurred) {
         *ErrorOccurred = (ok == FALSE);
     }
