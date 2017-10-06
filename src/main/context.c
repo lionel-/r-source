@@ -280,12 +280,20 @@ RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
 
 void attribute_hidden NORET R_jumptopctxt()
 {
-    RCNTXT *ctxt = getjumpcontext(CTXT_TOPLEVEL, NULL, NULL);
+    RCNTXT *ctxt = R_GlobalContext;
 
-    if (ctxt == NULL)
-        R_jumpctxt(R_ToplevelContext, CTXT_TOPLEVEL, NULL);
-    else
-        R_jumpctxt(ctxt, CTXT_TOPLEVEL, NULL);
+    while (ctxt != NULL && ctxt != R_ToplevelContext) {
+        // Jump to intermediate step
+        if (ctxt->callflag & CTXT_FORWARD) {
+            ctxt->jumptarget = R_ToplevelContext;
+            ctxt->jumpmask = CTXT_TOPLEVEL;
+            R_jumpctxt(ctxt, CTXT_FORWARD, NULL);
+        } else {
+            ctxt = ctxt->nextcontext;
+        }
+    }
+
+    R_jumpctxt(R_ToplevelContext, CTXT_TOPLEVEL, NULL);
 }
 
 /* begincontext - begin an execution context */
