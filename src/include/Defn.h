@@ -554,6 +554,7 @@ typedef struct RCNTXT {
     SEXP returnValue;           /* only set during on.exit calls */
     struct RCNTXT *jumptarget;	/* target for a continuing jump */
     int jumpmask;               /* associated LONGJMP argument */
+    int forwardtarget;          /* is a target for a forwarded jump */
 } RCNTXT, *context;
 
 /* The Various Context Types.

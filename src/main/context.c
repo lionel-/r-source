@@ -248,11 +248,10 @@ RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
     RCNTXT *fwd_ctxt = NULL;
 
     while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
-        if (ctxt->callflag & CTXT_FORWARD) {
+        if (ctxt->callflag & CTXT_FORWARD && !ctxt->forwardtarget) {
             if (fwd_ctxt != NULL)
-                error(_("cannot forward long jump twice, jumping to top level"));
-            else
-                fwd_ctxt = ctxt;
+                error(_("Internal error: cannot forward long jump twice"));
+            fwd_ctxt = ctxt;
         }
 
         if ((ctxt->callflag & mask) &&
@@ -275,6 +274,21 @@ RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
 
     return NULL;
 };
+
+RCNTXT *getforwardtargetcontext() {
+    RCNTXT *ctxt = R_GlobalContext;
+
+    while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
+        if (ctxt->callflag & CTXT_FORWARD) {
+            if (!ctxt->forwardtarget)
+                error(_("Internal error: unexpected forwarding context"));
+            return(ctxt);
+        }
+        ctxt = ctxt->nextcontext;
+    }
+
+    return NULL;
+}
 
 /* R_jumptopctxt - jump to top level context, possibly with intermediate steps */
 
@@ -332,6 +346,7 @@ void begincontext(RCNTXT * cptr, int flags,
     cptr->returnValue = NULL;
     cptr->jumptarget = NULL;
     cptr->jumpmask = 0;
+    cptr->forwardtarget = 0;
 
     R_GlobalContext = cptr;
 }
@@ -839,7 +854,9 @@ Rboolean R_ForwardExec(void (*fun)(void *), void *data) {
     RCNTXT thiscontext;
     Rboolean result;
 
-    RCNTXT *forwarded_ctxt = R_GlobalContext;
+    RCNTXT *forwarded_ctxt = getforwardtargetcontext();
+    if (!forwarded_ctxt)
+        error(_("Internal error: can't find target context for forwarding jump"));
 
     begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
                  R_BaseEnv, R_NilValue, R_NilValue);
