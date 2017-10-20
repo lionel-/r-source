@@ -592,9 +592,9 @@ CCO   0 0 0 1 0 0  = 8
 BRO   0 0 0 0 1 0  = 16
 RET   0 0 1 1 0 0  = 12
 GEN   0 0 1 0 1 0  = 20
-RES   0 0 0 0 0 0 1 = 32
-BUI   0 0 0 0 0 0 0 1 = 64
-FWD   0 0 0 0 0 0 0 0 1 = 128
+RES   0 0 0 0 0 1  = 32
+BUI   0 0 0 0 0 0 1  = 64
+FWD   0 0 0 0 0 0 0 1  = 128
 */
 
 #define IS_RESTART_BIT_SET(flags) ((flags) & CTXT_RESTART)
