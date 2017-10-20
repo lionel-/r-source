@@ -968,6 +968,7 @@ void R_Reprotect(SEXP, PROTECT_INDEX);
 SEXP R_tryEval(SEXP, SEXP, int *);
 SEXP R_tryEvalSilent(SEXP, SEXP, int *);
 const char *R_curErrorBuf();
+SEXP R_tryEvalForward(SEXP, SEXP, int *);
 
 Rboolean Rf_isS4(SEXP);
 SEXP Rf_asS4(SEXP, Rboolean, int);
@@ -1055,6 +1056,9 @@ SEXP R_tryCatch(SEXP (*)(void *), void *,       /* body closure*/
 		void (*)(void *), void *);      /* finally closure */
 SEXP R_tryCatchError(SEXP (*)(void *), void *,        /* body closure*/
 		     SEXP (*)(SEXP, void *), void *); /* handler closure */
+Rboolean R_ForwardExec(void (*fun)(void *), void *data);
+void R_WithForwardTargetExec(void (*fun)(void *), void *data);
+
 
 /* Environment and Binding Features */
 void R_RestoreHashCount(SEXP rho);

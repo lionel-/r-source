@@ -241,6 +241,74 @@ void attribute_hidden NORET R_jumpctxt(RCNTXT * targetcptr, int mask, SEXP val)
     LONGJMP(cptr->cjmpbuf, mask);
 }
 
+/* getjumpcontext - get jump context, minding for longjump-forwarding contexts */
+
+RCNTXT *getjumpcontext(int mask, SEXP env, RCNTXT *target) {
+    RCNTXT *ctxt = R_GlobalContext;
+    RCNTXT *fwd_ctxt = NULL;
+
+    while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
+        if (ctxt->callflag & CTXT_FORWARD && !ctxt->forwardtarget) {
+            if (fwd_ctxt != NULL)
+                error(_("Internal error: cannot forward long jump twice"));
+            fwd_ctxt = ctxt;
+        }
+
+        if ((ctxt->callflag & mask) &&
+            (env == NULL || ctxt->cloenv == env) &&
+            (target == NULL || target == ctxt)) {
+            // If we found a lonjump-forwarding context on the stack,
+            // we set its jump target to the actual target and we jump
+            // to the forwarding context as an intermediate step
+            if (fwd_ctxt == NULL) {
+                return ctxt;
+            } else {
+                fwd_ctxt->jumptarget = ctxt;
+                fwd_ctxt->jumpmask = mask;
+                return fwd_ctxt;
+            }
+        }
+
+        ctxt = ctxt->nextcontext;
+    }
+
+    return NULL;
+};
+
+RCNTXT *getforwardtargetcontext() {
+    RCNTXT *ctxt = R_GlobalContext;
+
+    while (ctxt != NULL && ctxt->callflag != CTXT_TOPLEVEL) {
+        if (ctxt->callflag & CTXT_FORWARD) {
+            if (!ctxt->forwardtarget)
+                error(_("Internal error: unexpected forwarding context"));
+            return(ctxt);
+        }
+        ctxt = ctxt->nextcontext;
+    }
+
+    return NULL;
+}
+
+/* R_jumptopctxt - jump to top level context, possibly with intermediate steps */
+
+void attribute_hidden NORET R_jumptopctxt()
+{
+    RCNTXT *ctxt = R_GlobalContext;
+
+    while (ctxt != NULL && ctxt != R_ToplevelContext) {
+        // Jump to intermediate step
+        if (ctxt->callflag & CTXT_FORWARD) {
+            ctxt->jumptarget = R_ToplevelContext;
+            ctxt->jumpmask = CTXT_TOPLEVEL;
+            R_jumpctxt(ctxt, CTXT_FORWARD, NULL);
+        } else {
+            ctxt = ctxt->nextcontext;
+        }
+    }
+
+    R_jumpctxt(R_ToplevelContext, CTXT_TOPLEVEL, NULL);
+}
 
 /* begincontext - begin an execution context */
 
@@ -278,6 +346,7 @@ void begincontext(RCNTXT * cptr, int flags,
     cptr->returnValue = NULL;
     cptr->jumptarget = NULL;
     cptr->jumpmask = 0;
+    cptr->forwardtarget = 0;
 
     R_GlobalContext = cptr;
 }
@@ -311,10 +380,17 @@ void endcontext(RCNTXT * cptr)
     }
     if (R_ExitContext == cptr)
 	R_ExitContext = NULL;
+
     /* continue jumping if this was reached as an intermetiate jump */
-    if (jumptarget)
-	/* cptr->returnValue is undefined */
-	R_jumpctxt(jumptarget, cptr->jumpmask, R_ReturnedValue);
+    if (jumptarget) {
+        // A longjump-forwarding frame might have set a returnValue
+        SEXP val;
+        if (cptr->returnValue)
+            val = cptr->returnValue;
+        else
+            val = R_ReturnedValue;
+	R_jumpctxt(jumptarget, cptr->jumpmask, val);
+    }
 
     R_GlobalContext = cptr->nextcontext;
 }
@@ -325,7 +401,7 @@ void endcontext(RCNTXT * cptr)
 void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
 {
     RCNTXT *cptr;
-    cptr = R_GlobalContext;
+
     if (mask & CTXT_LOOP) {		/* break/next */
 	for (cptr = R_GlobalContext;
 	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
@@ -335,27 +411,28 @@ void attribute_hidden NORET findcontext(int mask, SEXP env, SEXP val)
 	error(_("no loop for break/next, jumping to top level"));
     }
     else {				/* return; or browser */
-	for (cptr = R_GlobalContext;
-	     cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-	     cptr = cptr->nextcontext)
-	    if ((cptr->callflag & mask) && cptr->cloenv == env)
-		R_jumpctxt(cptr, mask, val);
-	error(_("no function to return from, jumping to top level"));
+        cptr = getjumpcontext(mask, env, NULL);
+        if (cptr == NULL)
+            error(_("no function to return from, jumping to top level"));
+        else
+            R_jumpctxt(cptr, mask, val);
     }
 }
 
 void attribute_hidden NORET R_JumpToContext(RCNTXT *target, int mask, SEXP val)
 {
-    RCNTXT *cptr;
-    for (cptr = R_GlobalContext;
-	 cptr != NULL && cptr->callflag != CTXT_TOPLEVEL;
-	 cptr = cptr->nextcontext) {
-	if (cptr == target)
-	    R_jumpctxt(cptr, mask, val);
-	if (cptr == R_ExitContext)
-	    R_ExitContext = NULL;
+    RCNTXT *cptr = getjumpcontext(mask, NULL, target);
+    if (cptr == NULL)
+        error(_("target context is not on the stack"));
+
+    RCNTXT *c = R_GlobalContext;
+    while (c != cptr) {
+        if (c == R_ExitContext)
+            R_ExitContext = NULL;
+        c = c->nextcontext;
     }
-    error(_("target context is not on the stack"));
+
+    R_jumpctxt(cptr, mask, val);
 }
 
 
@@ -773,7 +850,45 @@ Rboolean R_ToplevelExec(void (*fun)(void *), void *data)
     return result;
 }
 
+void R_WithForwardTargetExec(void (*fun)(void *), void *data) {
+    RCNTXT thiscontext;
 
+    begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
+                 R_BaseEnv, R_NilValue, R_NilValue);
+
+    thiscontext.forwardtarget = 1;
+    SETJMP(thiscontext.cjmpbuf);
+
+    fun(data);
+
+    endcontext(&thiscontext);
+    return;
+}
+
+Rboolean R_ForwardExec(void (*fun)(void *), void *data) {
+    RCNTXT thiscontext;
+    Rboolean result;
+
+    RCNTXT *forwarded_ctxt = getforwardtargetcontext();
+    if (!forwarded_ctxt)
+        error(_("Internal error: can't find target context for forwarding jump"));
+
+    begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
+                 R_BaseEnv, R_NilValue, R_NilValue);
+    if (SETJMP(thiscontext.cjmpbuf)) {
+        forwarded_ctxt->jumptarget = thiscontext.jumptarget;
+        // Save return value because R code might run in C++ destructors
+        forwarded_ctxt->returnValue = R_ReturnedValue;
+        thiscontext.jumptarget = NULL;
+        result = FALSE;
+    } else {
+        fun(data);
+        result = TRUE;
+    }
+    endcontext(&thiscontext);
+
+    return result;
+}
 
 /*
   This is a simple interface for evaluating R expressions
@@ -827,6 +942,27 @@ R_tryEval(SEXP e, SEXP env, int *ErrorOccurred)
 	data.val = NULL;
     else
 	UNPROTECT(1);
+
+    return(data.val);
+}
+SEXP
+R_tryEvalForward(SEXP e, SEXP env, int *ErrorOccurred)
+{
+    Rboolean ok;
+    ProtectedEvalData data;
+
+    data.expression = e;
+    data.val = NULL;
+    data.env = env;
+
+    ok = R_ForwardExec(protectedEval, &data);
+    if (ErrorOccurred) {
+        *ErrorOccurred = (ok == FALSE);
+    }
+    if (ok == FALSE)
+        data.val = NULL;
+    else
+        UNPROTECT(1);
 
     return(data.val);
 }

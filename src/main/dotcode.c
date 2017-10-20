@@ -559,6 +559,14 @@ typedef DL_FUNC VarFun;
 
 SEXP attribute_hidden R_doDotCall(DL_FUNC ofun, int nargs, SEXP *cargs,
 				  SEXP call) {
+    // Set a target context for longjump forwarding
+    RCNTXT thiscontext;
+    begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
+                 R_BaseEnv, R_NilValue, R_NilValue);
+
+    thiscontext.forwardtarget = 1;
+    SETJMP(thiscontext.cjmpbuf);
+
     VarFun fun = NULL;
     SEXP retval = R_NilValue;	/* -Wall */
     fun = (VarFun) ofun;
@@ -1215,6 +1223,8 @@ SEXP attribute_hidden R_doDotCall(DL_FUNC ofun, int nargs, SEXP *cargs,
     default:
 	errorcall(call, _("too many arguments, sorry"));
     }
+
+    endcontext(&thiscontext);
     return retval;
 }
 
