@@ -1057,6 +1057,8 @@ SEXP R_tryCatch(SEXP (*)(void *), void *,       /* body closure*/
 SEXP R_tryCatchError(SEXP (*)(void *), void *,        /* body closure*/
 		     SEXP (*)(SEXP, void *), void *); /* handler closure */
 Rboolean R_ForwardExec(void (*fun)(void *), void *data);
+void R_WithForwardTargetExec(void (*fun)(void *), void *data);
+
 
 /* Environment and Binding Features */
 void R_RestoreHashCount(SEXP rho);

@@ -850,6 +850,21 @@ Rboolean R_ToplevelExec(void (*fun)(void *), void *data)
     return result;
 }
 
+void R_WithForwardTargetExec(void (*fun)(void *), void *data) {
+    RCNTXT thiscontext;
+
+    begincontext(&thiscontext, CTXT_FORWARD, R_NilValue, R_GlobalEnv,
+                 R_BaseEnv, R_NilValue, R_NilValue);
+
+    thiscontext.forwardtarget = 1;
+    SETJMP(thiscontext.cjmpbuf);
+
+    fun(data);
+
+    endcontext(&thiscontext);
+    return;
+}
+
 Rboolean R_ForwardExec(void (*fun)(void *), void *data) {
     RCNTXT thiscontext;
     Rboolean result;
