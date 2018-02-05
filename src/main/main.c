@@ -1057,6 +1057,14 @@ void setup_Rmainloop(void)
 	R_init_jit_enabled();
     } else
 	R_Suicide(_("unable to initialize the JIT\n"));
+
+    SEXP uddClass = PROTECT(Rf_allocVector(STRSXP, 1));
+    SET_STRING_ELT(uddClass, 0, Rf_mkChar("UserDefinedDatabase"));
+    R_UserDefinedDatabaseAttrs = cons(uddClass, R_NilValue);
+    R_PreserveObject(R_UserDefinedDatabaseAttrs);
+    SET_TAG(R_UserDefinedDatabaseAttrs, Rf_install("class"));
+    UNPROTECT(1);
+
     R_Is_Running = 2;
 }
 

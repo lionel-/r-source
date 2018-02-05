@@ -868,6 +868,8 @@ LibExtern SEXP	R_NaString;	    /* NA_STRING as a CHARSXP */
 LibExtern SEXP	R_BlankString;	    /* "" as a CHARSXP */
 LibExtern SEXP	R_BlankScalarString;	    /* "" as a STRSXP */
 
+LibExtern SEXP	R_UserDefinedDatabaseAttrs;
+
 /* srcref related functions */
 SEXP R_GetCurrentSrcref(int);
 SEXP R_GetSrcFilename(SEXP);

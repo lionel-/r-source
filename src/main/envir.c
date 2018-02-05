@@ -99,7 +99,7 @@
 #define FAST_BASE_CACHE_LOOKUP  /* Define to enable fast lookups of symbols */
 				/*    in global cache from base environment */
 
-#define IS_USER_DATABASE(rho)  (OBJECT((rho)) && inherits((rho), "UserDefinedDatabase"))
+#define IS_USER_DATABASE(rho)  (OBJECT((rho)) && (ATTRIB((rho)) == R_UserDefinedDatabaseAttrs || inherits((rho), "UserDefinedDatabase")))
 
 /* various definitions of macros/functions in Defn.h */
 
