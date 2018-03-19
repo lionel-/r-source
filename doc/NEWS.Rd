@@ -619,6 +619,10 @@
 
       \item Indexing a list using dollar and empty string (\code{l$""})
       returns NULL.
+
+      \item Deparsing of consecutive \code{!} calls is now consistent
+      with deparsing unary \code{-} and \code{+} calls and creates
+      code that can be reparsed exactly.
     }
   }
 }

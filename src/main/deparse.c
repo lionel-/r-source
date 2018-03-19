@@ -581,6 +581,9 @@ static Rboolean needsparens(PPinfo mainop, SEXP arg, unsigned int left)
 		case PP_ASSIGN2:
 		case PP_UNARY:
 		case PP_DOLLAR:
+                    /* Same as other unary operators above */
+                    if (arginfo.precedence == PREC_NOT && !left)
+                        return FALSE;
 		    if (mainop.precedence > arginfo.precedence
 			|| (mainop.precedence == arginfo.precedence && left == mainop.rightassoc)) {
 			return TRUE;
