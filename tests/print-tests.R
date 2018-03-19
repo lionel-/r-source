@@ -337,3 +337,16 @@ print(list(a, expression(foo), b, quote(foo), c, base::list, d), digits = 4L, ot
 #
 ## Cleanup
 rm(print.foo, obj, a, b, c, d)
+
+
+## Locally-defined methods work when print.default() is called
+print.foo <- function(...) stop("should not be called")
+local({
+    print.foo <- function(...) cat("OK\n")
+    obj <- structure(list(), class = "foo")
+    print(obj)
+    print(pairlist(obj))
+    print(structure(list(), attr = obj))
+    print(list(list(obj, pairlist(obj, structure(list(obj), attr = obj)))))
+})
+rm(print.foo)

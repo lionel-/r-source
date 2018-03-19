@@ -45,8 +45,8 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
 
     noOpt <- all(missings) && missing(...)
 
-    .Internal(print.default(x, digits, quote, na.print, print.gap, right, max,
-			    useSource, noOpt, callArgs))
+    .Internal(print.default(x, parent.frame(), digits, quote, na.print, print.gap,
+			    right, max, useSource, noOpt, callArgs))
 }
 
 prmatrix <-

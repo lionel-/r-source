@@ -942,3 +942,40 @@ NULL
 > ## Cleanup
 > rm(print.foo, obj, a, b, c, d)
 > 
+> 
+> ## Locally-defined methods work when print.default() is called
+> print.foo <- function(...) stop("should not be called")
+> local({
++     print.foo <- function(...) cat("OK\n")
++     obj <- structure(list(), class = "foo")
++     print(obj)
++     print(pairlist(obj))
++     print(structure(list(), attr = obj))
++     print(list(list(obj, pairlist(obj, structure(list(obj), attr = obj)))))
++ })
+OK
+[[1]]
+OK
+
+list()
+attr(,"attr")
+OK
+[[1]]
+[[1]][[1]]
+OK
+
+[[1]][[2]]
+[[1]][[2]][[1]]
+OK
+
+[[1]][[2]][[2]]
+[[1]][[2]][[2]][[1]]
+OK
+
+attr(,"attr")
+OK
+
+
+
+> rm(print.foo)
+> 
