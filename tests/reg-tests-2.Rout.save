@@ -7714,7 +7714,7 @@ a + b < c + d
 > quote(`!`(a < b))
 !a < b
 > quote(`<`(!b, !d))
-(!b) < (!d)
+(!b) < !d
 > quote(`&`(!b, !d))
 !b & !d
 > quote(`!`(a & b))
@@ -7753,6 +7753,20 @@ b = `?`(d)
 > dput(a)
 list(one = 1, two = )
 > ## deparsed two to quote()
+> 
+> ## Deparsing of repeated unary operators
+> quote(~~x)
+~~x
+> quote(++x)
+++x
+> quote(--x)
+--x
+> quote(!!x)
+!!x
+> quote(??x) # Suboptimal
+`?`(`?`(x))
+> quote(~+-!?x)
+~+-!`?`(x)
 > 
 > 
 > ## summary.data.frame() with NAs in columns of class "Date" -- PR#16709

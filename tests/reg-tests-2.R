@@ -2998,6 +2998,14 @@ a <- alist(one = 1, two = )
 dput(a)
 ## deparsed two to quote()
 
+## Deparsing of repeated unary operators
+quote(~~x)
+quote(++x)
+quote(--x)
+quote(!!x)
+quote(??x) # Suboptimal
+quote(~+-!?x)
+
 
 ## summary.data.frame() with NAs in columns of class "Date" -- PR#16709
 x <- c(18000000, 18810924, 19091227, 19027233, 19310526, 19691228, NA)
