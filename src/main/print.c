@@ -479,11 +479,19 @@ static void PrintGenericVector(SEXP s, SEXP env)
 		}
 		Rprintf("%s\n", tagbuf);
 		if(isObject(VECTOR_ELT(s, i))) {
+                    SEXP x = VECTOR_ELT(s, i);
+                    int n_protect = 0;
+                    if (TYPEOF(x) == LANGSXP) {
+                        x = PROTECT(lang2(R_Primitive("quote"), x));
+                        ++n_protect;
+                    }
+
 		    /* need to preserve tagbuf */
 		    strcpy(save, tagbuf);
-		    SETCADR(newcall, VECTOR_ELT(s, i));
+                    SETCADR(newcall, x);
 		    eval(newcall, env);
 		    strcpy(tagbuf, save);
+                    UNPROTECT(n_protect);
 		}
 		else PrintValueRec(VECTOR_ELT(s, i), env);
 		*ptag = '\0';
@@ -632,8 +640,16 @@ static void printList(SEXP s, SEXP env)
 	    }
 	    Rprintf("%s\n", tagbuf);
 	    if(isObject(CAR(s))) {
-		SETCADR(newcall, CAR(s));
+                SEXP x = CAR(s);
+                int n_protect = 0;
+                if (TYPEOF(x) == LANGSXP) {
+                    x = PROTECT(lang2(R_Primitive("quote"), x));
+                    ++n_protect;
+                }
+
+                SETCADR(newcall, x);
 		eval(newcall, env);
+                UNPROTECT(n_protect);
 	    }
 	    else PrintValueRec(CAR(s),env);
 	    *ptag = '\0';
@@ -936,14 +952,21 @@ static void printAttributes(SEXP s, SEXP env, Rboolean useSlots)
 		    na_width_noquote = R_print.na_width_noquote;
 		Rprt_adj right = R_print.right;
 
+                SEXP x = CAR(a);
+                int n_protect = 0;
+                if (TYPEOF(x) == LANGSXP) {
+                    x = PROTECT(lang2(R_Primitive("quote"), x));
+                    ++n_protect;
+                }
+
 		PROTECT(t = s = allocList(3));
 		SET_TYPEOF(s, LANGSXP);
 		SETCAR(t, install("print")); t = CDR(t);
-		SETCAR(t,  CAR(a)); t = CDR(t);
+                SETCAR(t, x); t = CDR(t);
 		SETCAR(t, ScalarInteger(digits));
 		SET_TAG(t, install("digits"));
 		eval(s, env);
-		UNPROTECT(1);
+                UNPROTECT(1 + n_protect);
 		R_print.quote = quote;
 		R_print.right = right;
 		R_print.digits = digits;

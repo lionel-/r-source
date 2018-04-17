@@ -259,3 +259,21 @@ t2 <- tail(capture.output(print(dd, max = 500)))
 stopifnot(identical(t1, t2), l6 == 121)
 ## not quite consistent in R <= 2.14.x
 
+
+## Calls with S3 class are not evaluated when (auto)-printed
+obj <- structure(quote(stop("should not be evaluated")), class = "foo")
+
+a <- list(obj)
+b <- pairlist(obj)
+c <- structure(list(), attr = obj)
+d <- list(list(obj, pairlist(obj, structure(list(obj), attr = obj)), NULL))
+
+a
+b
+c
+d # Tags are not printed correctly but this will be fixed in R 3.6
+
+print(a)
+print(b)
+print(c)
+print(d)
