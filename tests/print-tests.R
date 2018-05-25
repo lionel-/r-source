@@ -259,3 +259,50 @@ t2 <- tail(capture.output(print(dd, max = 500)))
 stopifnot(identical(t1, t2), l6 == 121)
 ## not quite consistent in R <= 2.14.x
 
+
+## tagbuf is preserved after print dispatch in pairlists
+obj <- structure(list(), class = "foo")
+pairlist(a = list(A = obj, B = obj))
+list(list(pairlist(obj), NULL))
+list(list(obj, pairlist(obj, structure(list(obj), attr = obj)), NULL))
+rm(obj)
+
+
+## show() is preferred over print() when printing recursively
+print.callS4Class <- function(x, ...) stop("shouldn't dispatch to print()")
+.CallS4Class <- setClass("callS4Class", slots = c(x = "numeric"))
+setMethod("show", "callS4Class", function(object) cat("S4 show!\n"))
+x <- .CallS4Class(x = 1)
+list(x)
+pairlist(x)
+structure(list(), attr = x)
+rm(x, .CallS4Class)
+
+
+## Calls with S3 class are not evaluated when (auto)-printed
+obj <- structure(quote(stop("should not be evaluated")), class = "foo")
+a <- list(obj)
+b <- pairlist(obj)
+c <- structure(list(), attr = obj)
+d <- list(list(obj, pairlist(obj, structure(list(obj), attr = obj)), NULL))
+# Now auto-print, and explicit print(.) :
+a
+b
+c
+d
+print(a)
+print(b)
+print(c)
+print(d)
+# Now with a method defined
+print.foo <- function(x, ...) cat("dispatched\n")
+a
+b
+c
+d
+print(a)
+print(b)
+print(c)
+print(d)
+# Cleanup
+rm(print.foo, obj, a, b, c, d)
