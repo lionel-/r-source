@@ -306,3 +306,34 @@ print(c)
 print(d)
 # Cleanup
 rm(print.foo, obj, a, b, c, d)
+
+
+## Print dispatch does not reset parameters
+local({
+    obj <- structure(list(), class = "foo")
+    num <- 0.123456789
+    print(list(num, obj, num), digits = 2)
+})
+
+
+## User-supplied arguments are forwarded on print-dispatch
+obj <- structure(list(), class = "foo")
+print.foo <- function(x, other = FALSE, digits = 0L, ...) {
+    cat("digits: ", digits, "\n")
+    stopifnot(other, digits == 4L)
+    stopifnot(!length(list(...)))
+}
+a <- list(obj)
+b <- pairlist(obj)
+c <- structure(list(), attr = obj)
+d <- list(list(obj, pairlist(obj, structure(list(obj), attr = obj)), NULL))
+print(a, digits = 4L, other = TRUE)
+print(b, digits = 4L, other = TRUE)
+print(c, digits = 4L, other = TRUE)
+print(d, digits = 4L, other = TRUE)
+#
+## Make sure deparsing does not reset parameters
+print(list(a, expression(foo), b, quote(foo), c, base::list, d), digits = 4L, other = TRUE)
+#
+## Cleanup
+rm(print.foo, obj, a, b, c, d)

@@ -825,6 +825,15 @@
 
       \item The indexing tags of recursive data structures are now
       printed correctly in complex cases.
+
+      \item Arguments supplied to \code{print()} are now properly
+      forwarded to print methods when printing lists, pairlists or
+      attributes containing S3 objects.
+
+      \item The print parameters are now preserved when printing S3
+      objects or deparsing symbols and calls. Before this fix printing
+      lists containing S3 objects or expressions would reset these
+      parameters.
     }
   }
 }
