@@ -834,6 +834,9 @@
       objects or deparsing symbols and calls. Before this fix printing
       lists containing S3 objects or expressions would reset these
       parameters.
+
+      \item Printing lists, pairlists or attributes containing
+      functions now uses \code{srcref} attributes if present.
     }
   }
 }
