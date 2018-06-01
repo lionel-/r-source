@@ -191,12 +191,13 @@ static void PrintClosure(SEXP s, Rboolean useSource)
 			   right, max, useS4)) */
 SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
-    SEXP x, naprint;
+    SEXP naprint;
 
     checkArity(op, args);
     PrintDefaults();
 
-    x = CAR(args); args = CDR(args);
+    SEXP x = CAR(args); args = CDR(args);
+    SEXP env = CAR(args); args = CDR(args);
 
     if(!isNull(CAR(args))) {
 	R_print.digits = asInteger(CAR(args));
@@ -256,9 +257,9 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     tagbuf[0] = '\0';
     if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
-	PrintObject(x, rho);
+	PrintObject(x, env);
     else
-	PrintValueRec(x, rho);
+	PrintValueRec(x, env);
 
     PrintDefaults(); /* reset, as na.print etc may have been set */
     return x;
