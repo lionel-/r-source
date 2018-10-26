@@ -3008,6 +3008,13 @@ quote(??x) # Suboptimal
 quote(~+-!?x) # ditto: ....`?`(x)
 ## `!` no longer produces parentheses now
 
+## Deparsing of :=
+quote(a := b) # was `:=(a, b)`
+quote(a := b := c)
+quote(a <- b := c)
+quote(`:=`(a, `=`(c, d)))
+quote(df[a := b])
+
 
 ## summary.data.frame() with NAs in columns of class "Date" -- PR#16709
 x <- c(18000000, 18810924, 19091227, 19027233, 19310526, 19691228, NA)

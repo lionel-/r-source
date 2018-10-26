@@ -125,6 +125,11 @@ FUNTAB R_FunTab[] =
 {"on.exit",	do_onexit,	0,	100,	-1,	{PP_FUNCALL, PREC_FN,	  0}},
 {"forceAndCall",do_forceAndCall,	0,	0,	-1,	{PP_FUNCALL, PREC_FN,	  0}},
 
+/* This vestigal operator is unused in R but allowed by the parser and
+   used in packages. We need an entry in the table in order to get
+   precedence info in the deparser. */
+{":=",		do_colonEquals,	 0,	100,	-1,	{PP_ASSIGN,  PREC_LEFT,	1}},
+
 /* .Internals */
 
 {"stop",	do_stop,	0,	11,	2,	{PP_FUNCALL, PREC_FN,	  0}},

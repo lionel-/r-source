@@ -98,6 +98,7 @@ SEXP do_chartr(SEXP, SEXP, SEXP, SEXP);
 SEXP do_class(SEXP, SEXP, SEXP, SEXP);
 SEXP do_classgets(SEXP, SEXP, SEXP, SEXP);
 SEXP do_colon(SEXP, SEXP, SEXP, SEXP);
+SEXP do_colonEquals(SEXP, SEXP, SEXP, SEXP);
 SEXP do_colsum(SEXP, SEXP, SEXP, SEXP);
 SEXP do_commandArgs(SEXP, SEXP, SEXP, SEXP);
 SEXP do_comment(SEXP, SEXP, SEXP, SEXP);

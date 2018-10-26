@@ -2785,6 +2785,11 @@ SEXP attribute_hidden do_set(SEXP call, SEXP op, SEXP args, SEXP rho)
     return R_NilValue;/*NOTREACHED*/
 }
 
+SEXP attribute_hidden do_colonEquals(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    error(_("':=' used in an incorrect context"));
+}
+
 
 /* Evaluate each expression in "el" in the environment "rho".  This is
    a naturally recursive algorithm, but we use the iterative form below

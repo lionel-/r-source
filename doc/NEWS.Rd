@@ -428,6 +428,9 @@
       \item Subassignment to no/empty rows of a data frame now is more
       consistent and typically a no-op in all cases instead of sometimes
       an error; part of Emil Bode's \PR{17483}.
+
+      \item Calls with \code{:=} assignments are now deparsed and
+      printed in infix form, just like calls to other binary operators.
     }
   }
 }

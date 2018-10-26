@@ -2170,6 +2170,13 @@ stopifnot(exprs = {
 ## had failed after svn c75474
 
 
+## := fails when called
+err <- tryCatch(a := b, error = identity)
+stopifnot(
+    inherits(err, "simpleError"),
+    identical(conditionMessage(err), "':=' used in an incorrect context")
+)
+
 
 ## keep at end
 rbind(last =  proc.time() - .pt,
