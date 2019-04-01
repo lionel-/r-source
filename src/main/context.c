@@ -865,17 +865,44 @@ SEXP R_ExecWithCleanup(SEXP (*fun)(void *), void *data,
 
 /* Hook mechanism to support multiple C callbacks for cleanup */
 
+static void callExitCallbacks(void* data) {
+    SEXP callbacks = (SEXP) data;
+
+    /* Remove stretchy shortcut and reverse list so we call back in
+       reverse order */
+    callbacks = CDR(callbacks);
+    callbacks = PROTECT(listReverse(callbacks));
+
+    while (callbacks != R_NilValue) {
+	SEXP cb = CAR(callbacks);
+	void (*fun)(void *) = (void (*)(void *)) R_ExternalPtrAddrFn(CAR(cb));
+	void *data = (void *) EXTPTR_PTR(CDR(cb));
+
+	fun(data);
+	callbacks = CDR(callbacks);
+    }
+
+    UNPROTECT(1);
+}
+
 void *R_ExecWithExit(void *(*fun)(void *data), void *data)
 {
+    /* Store callbacks in a stretchy list */
+    SEXP callbacks = PROTECT(CONS(R_NilValue, R_NilValue));
+    SETCAR(callbacks, callbacks);
+
     RCNTXT cntxt;
     begincontext(&cntxt, CTXT_EXIT, R_NilValue, R_BaseEnv, R_BaseEnv,
 		 R_NilValue, R_NilValue);
-    // TODO: Assign clean up function and callback stack
-    cntxt.cend = NULL;
-    cntxt.cenddata = NULL;
+    cntxt.cend = callExitCallbacks;
+    cntxt.cenddata = (void *) callbacks;
 
     void *result = fun(data);
     endcontext(&cntxt);
+
+    callExitCallbacks(callbacks);
+
+    UNPROTECT(1);
     return result;
 }
 
@@ -893,8 +920,16 @@ static RCNTXT *firstExitTarget()
 void R_onExit(void (*fun)(void *data), void *data)
 {
     RCNTXT *cntxt = firstExitTarget();
-    // TODO: push `fun` on the callback stack
-    cntxt->cenddata = NULL;
+    SEXP callbacks = (SEXP) cntxt->cenddata;
+
+    SEXP funPtr = PROTECT(R_MakeExternalPtrFn((DL_FUNC) fun, R_NilValue, R_NilValue));
+    SEXP dataPtr = PROTECT(R_MakeExternalPtr(data, R_NilValue, R_NilValue));
+    SEXP cb = CONS(CONS(funPtr, dataPtr), R_NilValue);
+
+    SETCDR(CAR(callbacks), cb);
+    SETCAR(callbacks, cb);
+
+    UNPROTECT(2);
 }
 
 

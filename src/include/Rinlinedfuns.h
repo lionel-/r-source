@@ -677,6 +677,27 @@ INLINE_FUN SEXP listAppend(SEXP s, SEXP t)
     return s;
 }
 
+/* Destructive list reverse. Input can be unprotected and output
+   should be reprotected. */
+
+INLINE_FUN SEXP listReverse(SEXP s)
+{
+    if (s == R_NilValue)
+        return s;
+
+    SEXP prev = R_NilValue;
+    SEXP tail = s;
+    SEXP next;
+    while (tail != R_NilValue) {
+        next = CDR(tail);
+        SETCDR(tail, prev);
+        prev = tail;
+        tail = next;
+    }
+
+    return prev;
+}
+
 
 /* Language based list constructs.  These are identical to the list */
 /* constructs, but the results can be evaluated. */
