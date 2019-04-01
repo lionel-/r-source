@@ -1166,6 +1166,8 @@ void R_reinit_altrep_classes(DllInfo *);
 Rboolean R_ToplevelExec(void (*fun)(void *), void *data);
 SEXP R_ExecWithCleanup(SEXP (*fun)(void *), void *data,
 		       void (*cleanfun)(void *), void *cleandata);
+void *R_ExecWithExit(void *(*fun)(void *data), void *data);
+void R_onExit(void (*fun)(void *data), void *data);
 SEXP R_tryCatch(SEXP (*)(void *), void *,       /* body closure*/
 		SEXP,                           /* condition classes (STRSXP) */
 		SEXP (*)(SEXP, void *), void *, /* handler closure */

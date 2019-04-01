@@ -863,6 +863,41 @@ SEXP R_ExecWithCleanup(SEXP (*fun)(void *), void *data,
 }
 
 
+/* Hook mechanism to support multiple C callbacks for cleanup */
+
+void *R_ExecWithExit(void *(*fun)(void *data), void *data)
+{
+    RCNTXT cntxt;
+    begincontext(&cntxt, CTXT_EXIT, R_NilValue, R_BaseEnv, R_BaseEnv,
+		 R_NilValue, R_NilValue);
+    // TODO: Assign clean up function and callback stack
+    cntxt.cend = NULL;
+    cntxt.cenddata = NULL;
+
+    void *result = fun(data);
+    endcontext(&cntxt);
+    return result;
+}
+
+static RCNTXT *firstExitTarget()
+{
+    for (RCNTXT *c = R_GlobalContext; c && c != R_ToplevelContext; c = c->nextcontext) {
+	if (c->callflag == CTXT_FUNCTION)
+	    break;
+	if (c->callflag == CTXT_EXIT)
+	    return c;
+    }
+    error(_("can't find exit target, jumping to top level"));
+}
+
+void R_onExit(void (*fun)(void *data), void *data)
+{
+    RCNTXT *cntxt = firstExitTarget();
+    // TODO: push `fun` on the callback stack
+    cntxt->cenddata = NULL;
+}
+
+
 /* Unwind-protect mechanism to support C++ stack unwinding. */
 
 typedef struct {
