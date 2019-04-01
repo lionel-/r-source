@@ -906,30 +906,40 @@ void *R_ExecWithExit(void *(*fun)(void *data), void *data)
     return result;
 }
 
-static RCNTXT *firstExitTarget()
+void R_onExit(void (*fun)(void *data), void *data)
 {
+    RCNTXT *target = NULL;
     for (RCNTXT *c = R_GlobalContext; c && c != R_ToplevelContext; c = c->nextcontext) {
 	if (c->callflag == CTXT_FUNCTION)
 	    break;
-	if (c->callflag == CTXT_EXIT)
-	    return c;
+	if (c->callflag == CTXT_EXIT) {
+	    target = c;
+	    break;
+	}
     }
-    error(_("can't find exit target, jumping to top level"));
-}
+    if (!target) {
+	fun(data);
+	error(_("can't find exit target, jumping to top level"));
+    }
 
-void R_onExit(void (*fun)(void *data), void *data)
-{
-    RCNTXT *cntxt = firstExitTarget();
-    SEXP callbacks = (SEXP) cntxt->cenddata;
+    RCNTXT cntxt;
+    begincontext(&cntxt, CTXT_CCODE, R_NilValue, R_BaseEnv, R_BaseEnv,
+		 R_NilValue, R_NilValue);
+    /* Protect in case allocation fails */
+    if (SETJMP(cntxt.cjmpbuf)) {
+	fun(data);
+    } else {
+	SEXP callbacks = (SEXP) target->cenddata;
 
-    SEXP funPtr = PROTECT(R_MakeExternalPtrFn((DL_FUNC) fun, R_NilValue, R_NilValue));
-    SEXP dataPtr = PROTECT(R_MakeExternalPtr(data, R_NilValue, R_NilValue));
-    SEXP cb = CONS(CONS(funPtr, dataPtr), R_NilValue);
+	SEXP funPtr = PROTECT(R_MakeExternalPtrFn((DL_FUNC) fun, R_NilValue, R_NilValue));
+	SEXP dataPtr = PROTECT(R_MakeExternalPtr(data, R_NilValue, R_NilValue));
+	SEXP cb = CONS(CONS(funPtr, dataPtr), R_NilValue);
 
-    SETCDR(CAR(callbacks), cb);
-    SETCAR(callbacks, cb);
-
-    UNPROTECT(2);
+	SETCDR(CAR(callbacks), cb);
+	SETCAR(callbacks, cb);
+	UNPROTECT(2);
+    }
+    endcontext(&cntxt);
 }
 
 
