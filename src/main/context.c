@@ -878,7 +878,7 @@ static void callExitCallbacks(void* data) {
 	void (*fun)(void *) = (void (*)(void *)) R_ExternalPtrAddrFn(CAR(cb));
 	void *data = (void *) EXTPTR_PTR(CDR(cb));
 
-	fun(data);
+	R_ToplevelExec(fun, data);
 	callbacks = CDR(callbacks);
     }
 
