@@ -868,10 +868,8 @@ SEXP R_ExecWithCleanup(SEXP (*fun)(void *), void *data,
 static void callExitCallbacks(void* data) {
     SEXP callbacks = (SEXP) data;
 
-    /* Remove stretchy shortcut and reverse list so we call back in
-       reverse order */
+    /* Remove protecting node */
     callbacks = CDR(callbacks);
-    callbacks = PROTECT(listReverse(callbacks));
 
     while (callbacks != R_NilValue) {
 	SEXP cb = CAR(callbacks);
@@ -881,15 +879,11 @@ static void callExitCallbacks(void* data) {
 	R_ToplevelExec(fun, data);
 	callbacks = CDR(callbacks);
     }
-
-    UNPROTECT(1);
 }
 
 void *R_ExecWithExit(void *(*fun)(void *data), void *data)
 {
-    /* Store callbacks in a stretchy list */
     SEXP callbacks = PROTECT(CONS(R_NilValue, R_NilValue));
-    SETCAR(callbacks, callbacks);
 
     RCNTXT cntxt;
     begincontext(&cntxt, CTXT_EXIT, R_NilValue, R_BaseEnv, R_BaseEnv,
@@ -930,13 +924,13 @@ void R_onExit(void (*fun)(void *data), void *data)
 	fun(data);
     } else {
 	SEXP callbacks = (SEXP) target->cenddata;
+	SEXP top = CDR(callbacks);
 
 	SEXP funPtr = PROTECT(R_MakeExternalPtrFn((DL_FUNC) fun, R_NilValue, R_NilValue));
 	SEXP dataPtr = PROTECT(R_MakeExternalPtr(data, R_NilValue, R_NilValue));
-	SEXP cb = CONS(CONS(funPtr, dataPtr), R_NilValue);
+	SEXP cb = CONS(CONS(funPtr, dataPtr), top);
 
-	SETCDR(CAR(callbacks), cb);
-	SETCAR(callbacks, cb);
+	SETCDR(callbacks, cb);
 	UNPROTECT(2);
     }
     endcontext(&cntxt);
