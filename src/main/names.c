@@ -642,6 +642,7 @@ FUNTAB R_FunTab[] =
 {".External",   do_External,    0,      1,      -1,     {PP_FOREIGN, PREC_FN,	0}},
 {".External2",   do_External,   1,    201,      -1,     {PP_FOREIGN, PREC_FN,	0}},
 {".Call",       do_dotcall,     0,      1,      -1,     {PP_FOREIGN, PREC_FN,	0}},
+{".safeCall",	do_safedotcall,	0,      1,      -1,     {PP_FOREIGN, PREC_FN,	0}},
 {".External.graphics", do_Externalgr, 0, 1,	-1,	{PP_FOREIGN, PREC_FN,	0}},
 {".Call.graphics", do_dotcallgr, 0,	1,	-1,	{PP_FOREIGN, PREC_FN,	0}},
 

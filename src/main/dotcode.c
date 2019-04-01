@@ -1291,6 +1291,23 @@ SEXP attribute_hidden do_dotcall(SEXP call, SEXP op, SEXP args, SEXP env)
     return retval;
 }
 
+struct primArgs {
+    SEXP call;
+    SEXP op;
+    SEXP args;
+    SEXP env;
+};
+static void *unwrapDotCall(void* data)
+{
+    struct primArgs *args = (struct primArgs *) data;
+    return do_dotcall(args->call, args->op, args->args, args->env);
+}
+SEXP attribute_hidden do_safedotcall(SEXP call, SEXP op, SEXP args, SEXP env)
+{
+    struct primArgs data = { call, op, args, env };
+    return R_ExecWithExit(unwrapDotCall, &data);
+}
+
 /*  Call dynamically loaded "internal" graphics functions
     .External.graphics (used in graphics) and  .Call.graphics (used in grid).
 

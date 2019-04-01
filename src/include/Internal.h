@@ -130,6 +130,7 @@ SEXP do_direxists(SEXP, SEXP, SEXP, SEXP);
 SEXP do_dirname(SEXP, SEXP, SEXP, SEXP);
 SEXP do_docall(SEXP, SEXP, SEXP, SEXP);
 SEXP do_dotcall(SEXP, SEXP, SEXP, SEXP);
+SEXP do_safedotcall(SEXP, SEXP, SEXP, SEXP);
 SEXP do_dotsElt(SEXP, SEXP, SEXP, SEXP);
 SEXP do_dotsLength(SEXP, SEXP, SEXP, SEXP);
 SEXP do_dotcallgr(SEXP, SEXP, SEXP, SEXP);
