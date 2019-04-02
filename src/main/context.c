@@ -871,14 +871,23 @@ static void callExitCallbacks(void* data) {
     /* Remove protecting node */
     callbacks = CDR(callbacks);
 
+    RCNTXT cntxt;
+    begincontext(&cntxt, CTXT_CCODE, R_NilValue, R_BaseEnv, R_BaseEnv,
+		 R_NilValue, R_NilValue);
+
+    /* Recurse here until callbacks have been exhausted */
+    SETJMP(cntxt.cjmpbuf);
+
     while (callbacks != R_NilValue) {
 	SEXP cb = CAR(callbacks);
+	callbacks = CDR(callbacks);
+
 	void (*fun)(void *) = (void (*)(void *)) R_ExternalPtrAddrFn(CAR(cb));
 	void *data = (void *) EXTPTR_PTR(CDR(cb));
-
-	R_ToplevelExec(fun, data);
-	callbacks = CDR(callbacks);
+	fun(data);
     }
+
+    endcontext(&cntxt);
 }
 
 void *R_ExecWithExit(void *(*fun)(void *data), void *data)
