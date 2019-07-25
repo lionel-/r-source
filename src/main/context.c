@@ -696,32 +696,34 @@ SEXP attribute_hidden do_sys(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 SEXP attribute_hidden do_parentframe(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
-    int n;
-    SEXP t;
-    RCNTXT *cptr;
-
     checkArity(op, args);
-    t = CAR(args);
-    n = asInteger(t);
 
+    int n = asInteger(CAR(args));
     if(n == NA_INTEGER || n < 1 )
 	error(_("invalid '%s' value"), "n");
 
-    cptr = R_GlobalContext;
-    t = cptr->sysparent;
-    while (cptr->nextcontext != NULL){
-	if (cptr->callflag & CTXT_FUNCTION ) {
-	    if (cptr->cloenv == t)
-	    {
+    RCNTXT *cptr = findParentContext(R_GlobalContext, n);
+
+    if (cptr)
+	return cptr->sysparent;
+    else
+	return R_GlobalEnv;
+}
+
+RCNTXT * attribute_hidden findParentContext(RCNTXT *cptr, int n) {
+    SEXP parent = cptr->sysparent;
+    while (cptr->nextcontext != NULL) {
+	if (cptr->callflag & CTXT_FUNCTION) {
+	    if (cptr->cloenv == parent) {
 		if (n == 1)
-		    return cptr->sysparent;
-		n--;
-		t = cptr->sysparent;
+		    return cptr;
+		--n;
+		parent = cptr->sysparent;
 	    }
 	}
 	cptr = cptr->nextcontext;
     }
-    return R_GlobalEnv;
+    return NULL;
 }
 
 /* R_ToplevelExec - call fun(data) within a top level context to
