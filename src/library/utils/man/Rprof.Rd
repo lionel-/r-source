@@ -28,6 +28,8 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   \item{memory.profiling}{logical: write memory use information to the file?}
   \item{gc.profiling}{logical:  record whether GC is running?}
   \item{line.profiling}{logical:  write line locations to the file?}
+  \item{branch.profiling}{logical: filter out intervening call frames
+    of the call tree. See the branch profiling section.}
   \item{numfiles, bufsize}{integers: line profiling memory allocation}
 }
 \details{
@@ -74,6 +76,29 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   discussion of source references.  By default the statement locations
   are not shown in \code{\link{summaryRprof}}, but see that help page
   for options to enable the display.
+}
+
+\section{Branch Profiling}{
+  Lazy evaluation makes the call stack more complex because intervening
+  call frames are created between the time arguments are applied to a
+  function, and the time they are effectively evaluated. When the call
+  stack is represented as a tree, these intervening frames appear as
+  sibling nodes. For instance, evaluating `try(EXPR)` produces the
+  following call tree, at the time `EXPR` gets evaluated:
+
+\preformatted{
+1. +-base::try(EXPR)
+2. | \-base::tryCatch(...)
+3. |   \-base:::tryCatchList(expr, classes, parentenv, handlers)
+4. |     \-base:::tryCatchOne(expr, names, parentenv, handlers[[1L]])
+5. |       \-base:::doTryCatch(return(expr), name, parentenv, handler)
+6. \-EXPR
+}
+
+  Lines 2 to 5 are intervening call frames, the last of which finally
+  triggered evaluation of \code{EXPR}. Setting `branch.profiling` to
+  \code{TRUE} simplifies the profiler output by removing all sibling
+  nodes of intervening frames.
 }
 \note{
   \describe{
