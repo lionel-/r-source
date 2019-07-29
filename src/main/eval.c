@@ -185,32 +185,38 @@ static pthread_t R_profiled_thread;
 #endif
 
 static RCNTXT * findProfContext(RCNTXT *cptr) {
-    switch (R_Branch_Profiling) {
-    case 0:
+    if (R_Branch_Profiling == 0)
 	return cptr->nextcontext;
-    case 1:
-	/* Same strategy as in `parent.frame()`. */
-	return findParentContext(cptr, 1);
-    case 2: {
-	RCNTXT *parent = findParentContext(cptr, 1);
 
-	if (!parent)
-	    return NULL;
+    /* Find parent frame, same algorithm as in `parent.frame()` */
+    RCNTXT *parent = findParentContext(cptr, 1);
 
-	/* If the closure was created within another closure, the
-	   latter is the lexical parent. For instance, this allows
-	   trimming the `lapply()` and `FUN()` frames from the
-	   profiles, when `FUN()` was created in the caller of
-	   `lapply()`. */
+    /* If the closure was created within another closure, the latter
+       is the lexical parent. For instance, this allows trimming the
+       `lapply()` and `FUN()` frames from the profiles, when `FUN()`
+       was created in the caller of `lapply()`. */
+    if (parent && R_Branch_Profiling == 2) {
 	RCNTXT *lexical_parent = NULL;
 	while ((lexical_parent = findLexicalParentContext(parent)))
 	    parent = lexical_parent;
+    }
 
+    if (parent)
 	return parent;
-    }
-    default:
-	error("Invalid branch profiling setting");
-    }
+
+    /* Base case, this interrupts the iteration over context frames */
+    if (cptr->nextcontext == R_ToplevelContext)
+	return NULL;
+
+    /* There is no parent but the immediate `nextcontext` is not the
+       first one on the stack. Find the very first frame to ensure it
+       is included in the profiles. */
+    RCNTXT *root = cptr;
+
+    while (root->nextcontext != R_ToplevelContext)
+	root = root->nextcontext;
+
+    return root;
 }
 
 static void doprof(int sig)  /* sig is ignored in Windows */
