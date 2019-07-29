@@ -726,6 +726,18 @@ RCNTXT * attribute_hidden findParentContext(RCNTXT *cptr, int n) {
     return NULL;
 }
 
+RCNTXT * attribute_hidden findLexicalParentContext(RCNTXT *cptr) {
+    SEXP enclosure = ENCLOS(cptr->cloenv);
+
+    while ((cptr = cptr->nextcontext)) {
+	if (cptr->callflag & CTXT_FUNCTION && cptr->cloenv == enclosure)
+	    return cptr;
+    }
+
+    return NULL;
+}
+
+
 /* R_ToplevelExec - call fun(data) within a top level context to
    insure that this functin cannot be left by a LONGJMP.  R errors in
    the call to fun will result in a jump to top level. The return

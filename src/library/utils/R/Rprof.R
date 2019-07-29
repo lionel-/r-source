@@ -22,6 +22,10 @@ Rprof <- function(filename = "Rprof.out", append = FALSE, interval =  0.02,
                   numfiles = 100L, bufsize = 10000L)
 {
     if(is.null(filename)) filename <- ""
+
+    branch.profiling <- as.integer(branch.profiling)
+    stopifnot(length(branch.profiling) == 1L, !is.na(branch.profiling))
+
     invisible(.External(C_Rprof, filename, append, interval, memory.profiling,
                         gc.profiling, line.profiling, branch.profiling,
                         numfiles, bufsize))

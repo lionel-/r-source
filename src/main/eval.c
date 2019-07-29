@@ -184,6 +184,35 @@ static void lineprof(char* buf, SEXP srcref)
 static pthread_t R_profiled_thread;
 #endif
 
+static RCNTXT * findProfContext(RCNTXT *cptr) {
+    switch (R_Branch_Profiling) {
+    case 0:
+	return cptr->nextcontext;
+    case 1:
+	/* Same strategy as in `parent.frame()`. */
+	return findParentContext(cptr, 1);
+    case 2: {
+	RCNTXT *parent = findParentContext(cptr, 1);
+
+	if (!parent)
+	    return NULL;
+
+	/* If the closure was created within another closure, the
+	   latter is the lexical parent. For instance, this allows
+	   trimming the `lapply()` and `FUN()` frames from the
+	   profiles, when `FUN()` was created in the caller of
+	   `lapply()`. */
+	RCNTXT *lexical_parent = NULL;
+	while ((lexical_parent = findLexicalParentContext(parent)))
+	    parent = lexical_parent;
+
+	return parent;
+    }
+    default:
+	error("Invalid branch profiling setting");
+    }
+}
+
 static void doprof(int sig)  /* sig is ignored in Windows */
 {
     char buf[PROFBUFSIZ];
@@ -219,7 +248,7 @@ static void doprof(int sig)  /* sig is ignored in Windows */
 	lineprof(buf, R_getCurrentSrcref());
 
     RCNTXT *cptr = R_GlobalContext;
-    while ((cptr = (R_Branch_Profiling ? findParentContext(cptr, 1) : cptr->nextcontext))) {
+    while ((cptr = findProfContext(cptr))) {
 	if ((cptr->callflag & (CTXT_FUNCTION | CTXT_BUILTIN))
 	    && TYPEOF(cptr->call) == LANGSXP) {
 	    SEXP fun = CAR(cptr->call);
@@ -459,7 +488,7 @@ SEXP do_Rprof(SEXP args)
     mem_profiling = asLogical(CAR(args));     args = CDR(args);
     gc_profiling = asLogical(CAR(args));      args = CDR(args);
     line_profiling = asLogical(CAR(args));    args = CDR(args);
-    branch_profiling = asLogical(CAR(args));  args = CDR(args);
+    branch_profiling = asInteger(CAR(args));  args = CDR(args);
     numfiles = asInteger(CAR(args));	      args = CDR(args);
     if (numfiles < 0)
 	error(_("invalid '%s' argument"), "numfiles");
