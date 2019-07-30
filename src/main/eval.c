@@ -201,6 +201,13 @@ static RCNTXT * findProfContext(RCNTXT *cptr) {
 	    parent = lexical_parent;
     }
 
+    /* Skip the two `base::eval()` frames. */
+    if (parent && parent->callfun) {
+	SEXP fn = parent->callfun;
+	if (TYPEOF(fn) == BUILTINSXP && !strcmp(PRIMNAME(fn), "eval"))
+	    parent = parent->nextcontext->nextcontext;
+    }
+
     if (parent)
 	return parent;
 
