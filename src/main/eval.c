@@ -184,6 +184,30 @@ static void lineprof(char* buf, SEXP srcref)
 static pthread_t R_profiled_thread;
 #endif
 
+static RCNTXT * findProfContext(RCNTXT *cptr) {
+    if (!R_Branch_Profiling)
+	return cptr->nextcontext;
+
+    /* Find parent context, same algorithm as in `parent.frame()`. */
+    RCNTXT * parent = findParentContext(cptr, 1);
+    if (parent)
+	return parent;
+
+    /* There is no parent frame, we now look for root nodes in the
+       call tree until we find the top level context. */
+    while ((cptr = cptr->nextcontext)) {
+	/* Base case, iteration over the call stack is finished. */
+	if (cptr == R_ToplevelContext)
+	    return NULL;
+
+	/* We have found a root node. */
+	if (cptr->sysparent == R_GlobalEnv)
+	    return cptr;
+    }
+
+    error("Internal error: Unexpected state in 'findProfContext()'.");
+}
+
 static void doprof(int sig)  /* sig is ignored in Windows */
 {
     char buf[PROFBUFSIZ];
@@ -219,7 +243,7 @@ static void doprof(int sig)  /* sig is ignored in Windows */
 	lineprof(buf, R_getCurrentSrcref());
 
     RCNTXT *cptr = R_GlobalContext;
-    while ((cptr = (R_Branch_Profiling ? findParentContext(cptr, 1) : cptr->nextcontext))) {
+    while ((cptr = findProfContext(cptr))) {
 	if ((cptr->callflag & (CTXT_FUNCTION | CTXT_BUILTIN))
 	    && TYPEOF(cptr->call) == LANGSXP) {
 	    SEXP fun = CAR(cptr->call);
