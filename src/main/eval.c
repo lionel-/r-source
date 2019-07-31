@@ -188,6 +188,10 @@ static RCNTXT * findProfContext(RCNTXT *cptr) {
     if (!R_Branch_Profiling)
 	return cptr->nextcontext;
 
+    /* Skip closure context of `base::eval()`. */
+    if (cptr->callfun == INTERNAL(Rf_install("eval")))
+	cptr = cptr->nextcontext;
+
     /* Find parent context, same algorithm as in `parent.frame()`. */
     RCNTXT * parent = findParentContext(cptr, 1);
     if (parent)
