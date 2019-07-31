@@ -197,19 +197,17 @@ static RCNTXT * findProfContext(RCNTXT *cptr) {
     if (parent)
 	return parent;
 
-    /* There is no parent frame, we now look for root nodes in the
-       call tree until we find the top level context. */
-    while ((cptr = cptr->nextcontext)) {
-	/* Base case, iteration over the call stack is finished. */
-	if (cptr == R_ToplevelContext)
-	    return NULL;
 
-	/* We have found a root node. */
-	if (cptr->sysparent == R_GlobalEnv)
-	    return cptr;
-    }
+    /* Base case, this interrupts the iteration over context frames */
+    if (cptr->nextcontext == R_ToplevelContext)
+	return NULL;
 
-    error("Internal error: Unexpected state in 'findProfContext()'.");
+    /* There is no parent frame and we haven't reached the top level
+       context. Find the very first context on the stack which should
+       always be included in the profiles. */
+    while (cptr->nextcontext != R_ToplevelContext)
+	cptr = cptr->nextcontext;
+    return cptr;
 }
 
 static void doprof(int sig)  /* sig is ignored in Windows */

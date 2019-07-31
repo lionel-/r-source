@@ -98,7 +98,7 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   Lines 2 to 5 are intervening call frames, the last of which finally
   triggered evaluation of \code{EXPR}. Setting `branch.profiling` to
   \code{TRUE} simplifies the profiler output by removing all sibling
-  nodes of intervening frames (except for sibling root nodes).
+  nodes of intervening frames.
 
   Another effect of branch profiling is to skip the redundant
   \code{eval()}'s frame that is pushed on the stack for technical
