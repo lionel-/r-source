@@ -100,9 +100,55 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   \code{TRUE} simplifies the profiler output by removing all sibling
   nodes of intervening frames.
 
-  Another effect of branch profiling is to skip the redundant
-  \code{eval()}'s frame that is pushed on the stack for technical
-  reasons.
+  The same kind of frame stripping is applied with `eval()` frames.
+  When you call `eval()`, two frames are pushed on the stack to ensure a
+  continuity between frames. Say we have these definitions:
+
+\preformatted{
+calling <- function() evaluator(quote(called()), environment())
+evaluator <- function(expr, env) eval(expr, env)
+called <- function() EXPR()
+}
+
+  \code{calling()} calls \code{called()} in its own environment, via
+  \code{eval()}. The latter is called indirectly through
+  \code{evaluator()}. The net effect of this code is identical to just
+  calling \code{called()} directly, without the intermediaries. However,
+  the full call stack looks like this:
+
+
+\preformatted{
+1. x-global::calling()
+2.   \-global::evaluator(quote(called()), environment())
+3.     \-base::eval(expr, env)
+4.       \-base::eval(expr, env)
+5.         \-global::called()
+6.           \-global::EXPR()
+}
+
+  When branch profiling is turned on, the true calling environment of
+  `called()` is looked up, and the branch call stack looks like this:
+
+\preformatted{
+1. x-global::calling()
+5.   \-global::called()
+6.     \-global::EXPR()
+}
+
+  If the calling environment is not on the stack, the function called by
+  \code{eval()} becomes a root node. Say we have:
+
+\preformatted{
+calling <- function() evaluator(quote(called()), new.env())
+}
+
+  We get the following branch call stack:
+
+\preformatted{
+5. x-global::called()
+6.   \-global::EXPR()
+}
+
 }
 \note{
   \describe{

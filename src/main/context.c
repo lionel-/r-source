@@ -710,18 +710,27 @@ SEXP attribute_hidden do_parentframe(SEXP call, SEXP op, SEXP args, SEXP rho)
 	return R_GlobalEnv;
 }
 
-RCNTXT * attribute_hidden findParentContext(RCNTXT *cptr, int n) {
-    SEXP parent = cptr->sysparent;
-    while (cptr->nextcontext != NULL) {
-	if (cptr->callflag & CTXT_FUNCTION) {
-	    if (cptr->cloenv == parent) {
-		if (n == 1)
-		    return cptr;
-		--n;
-		parent = cptr->sysparent;
-	    }
-	}
+/* findExecContext - Find a context frame older than `cptr` that has
+   `envir` as execution environment (the `cloenv` field). */
+RCNTXT * attribute_hidden findExecContext(RCNTXT *cptr, SEXP envir) {
+    while (cptr->nextcontext) {
+	if (cptr->callflag & CTXT_FUNCTION && cptr->cloenv == envir)
+	    return cptr;
 	cptr = cptr->nextcontext;
+    }
+    return NULL;
+}
+
+/* findParentContext - Find a context frame older than `cptr` whose
+   execution environment (`cloenv` field) is the same as cptr's
+   calling environment (`sysparent` field). In other words, find the
+   frame where `cptr->syscall` was (seemingly) called. This algorithm
+   powers `parent.frame()`. */
+RCNTXT * attribute_hidden findParentContext(RCNTXT *cptr, int n) {
+    while ((cptr = findExecContext(cptr, cptr->sysparent))) {
+	if (n == 1)
+	    return cptr;
+	--n;
     }
     return NULL;
 }

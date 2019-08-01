@@ -188,15 +188,16 @@ static RCNTXT * findProfContext(RCNTXT *cptr) {
     if (!R_Branch_Profiling)
 	return cptr->nextcontext;
 
-    /* Skip closure context of `base::eval()`. */
-    if (cptr->callfun == INTERNAL(Rf_install("eval")))
-	cptr = cptr->nextcontext;
-
     /* Find parent context, same algorithm as in `parent.frame()`. */
     RCNTXT * parent = findParentContext(cptr, 1);
+
+    /* If we're in a frame called by `eval()`, find the evaluation
+       environment higher up the stack, if any. */
+    if (parent && parent->callfun == INTERNAL(Rf_install("eval")))
+	parent = findExecContext(parent->nextcontext, cptr->sysparent);
+
     if (parent)
 	return parent;
-
 
     /* Base case, this interrupts the iteration over context frames */
     if (cptr->nextcontext == R_ToplevelContext)
