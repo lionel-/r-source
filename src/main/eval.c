@@ -190,6 +190,12 @@ static RCNTXT * findProfContext(RCNTXT *cptr) {
 
     /* Find parent context, same algorithm as in `parent.frame()`. */
     RCNTXT * parent = findParentContext(cptr, 1);
+
+    /* If we're in a frame called by `eval()`, find the evaluation
+       environment higher up the stack, if any. */
+    if (parent && parent->callfun == INTERNAL(Rf_install("eval")))
+	parent = findExecContext(parent->nextcontext, cptr->sysparent);
+
     if (parent)
 	return parent;
 
