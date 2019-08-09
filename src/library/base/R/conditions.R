@@ -88,7 +88,7 @@ suppressWarnings <- function(expr) {
     on.exit(options(ops))     ## calls are removed from methods code
     withCallingHandlers(expr,
                         warning=function(w)
-                            invokeRestart("muffleWarning"))
+                            invokeRestart("muffleWarning", optional = TRUE))
 }
 
 
@@ -204,12 +204,16 @@ computeRestarts <- function(cond = NULL) {
     }
 }
 
-invokeRestart <- function(r, ...) {
+invokeRestart <- function(r, ..., optional = FALSE) {
     if (! isRestart(r)) {
         res <- findRestart(r)
-        if (is.null(res))
-            stop(gettextf("no 'restart' '%s' found", as.character(r)),
-                 domain = NA)
+        if (is.null(res)) {
+            if (optional)
+                return(invisible(NULL))
+            else
+                stop(gettextf("no 'restart' '%s' found", as.character(r)),
+                    domain = NA)
+        }
         r <- res
     }
     .Internal(.invokeRestart(r, list(...)))

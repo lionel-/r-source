@@ -4926,7 +4926,7 @@ function(dir)
                                 warning = function(e) {
                                     .warnings <<- c(.warnings,
                                                     conditionMessage(e))
-                                    invokeRestart("muffleWarning")
+                                    invokeRestart("muffleWarning", optional = TRUE)
                                 })
         } else {
             withCallingHandlers(tryCatch(parse(file),
@@ -4935,7 +4935,7 @@ function(dir)
                                 warning = function(e) {
                                     .warnings <<- c(.warnings,
                                                     conditionMessage(e))
-                                    invokeRestart("muffleWarning")
+                                    invokeRestart("muffleWarning", optional = TRUE)
                                 })
         }
         ## (We show offending file paths starting with the base of the

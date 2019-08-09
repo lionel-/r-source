@@ -954,7 +954,7 @@ checkRd <- function(Rd, defines=.Platform$OS.type, stages = "render",
     .messages <- character()
     .whandler <-     function(e) {
         .messages <<- c(.messages, paste("prepare_Rd:", conditionMessage(e)))
-        invokeRestart("muffleWarning")
+        invokeRestart("muffleWarning", optional = TRUE)
     }
 
     Rd <- withCallingHandlers({

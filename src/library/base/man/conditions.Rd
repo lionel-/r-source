@@ -73,7 +73,7 @@ withRestarts(expr, \dots)
 
 computeRestarts(cond = NULL)
 findRestart(name, cond = NULL)
-invokeRestart(r, \dots)
+invokeRestart(r, \dots, optional = FALSE)
 invokeRestartInteractively(r)
 
 isRestart(x)
@@ -101,6 +101,10 @@ allowInterrupts(expr)
   \item{r}{restart object.}
   \item{x}{object.}
   \item{class}{character string naming a condition class.}
+  \item{optional}{whether not finding a restart is expected.
+    When \code{TRUE}, \code{invokeRestart()} returns silently
+    if \code{r} is not found. If \code{FALSE}, an error is
+    thrown.}
   \item{\dots}{additional arguments; see details below.}
 }
 
@@ -185,7 +189,16 @@ allowInterrupts(expr)
    arguments, if any, given as additional arguments to
    \code{invokeRestart}.  The restart argument to \code{invokeRestart}
    can be a character string, in which case \code{findRestart} is used
-   to find the restart.
+   to find the restart. If the restart is missing, an error is thrown by
+   default. Set \code{optional} to \code{TRUE} to return silently
+   instead. Because a condition of a given class might be signalled with
+   arbitrary protocols (error, warning, etc), it is recommended to use
+   this permissive setting whenever you are handling conditions
+   signalled from a foreign context. For instance, invokation of a
+   \code{"muffleWarnings"} restart should be optional because the
+   warning might have been signalled by the user or from a different
+   package with the \code{stop} or \code{message} protocols.
+
 
    New restarts for \code{withRestarts} can be specified in several ways.
    The simplest is in \code{name = function} form where the function is
