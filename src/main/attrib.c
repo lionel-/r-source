@@ -102,6 +102,40 @@ static Rboolean isOneDimensionalArray(SEXP vec)
     return FALSE;
 }
 
+SEXP attribute_hidden listGetNames(SEXP x)
+{
+    R_xlen_t len = 0;
+    Rboolean any = 0;
+    SEXP cell = vec;
+    while (cell != R_NilValue) {
+	if (TAG(cell) != R_NilValue)
+	    any = 1;
+	++len;
+	cell = CDR(cell);
+    }
+
+    if (!any)
+	return R_NilValue;
+
+    SEXP s = PROTECT(allocVector(STRSXP, len));
+    any = 0;
+    for (R_xlen_t i = 0; vec != R_NilValue; vec = CDR(vec), ++i) {
+	if (TAG(vec) == R_NilValue)
+	    SET_STRING_ELT(s, i, R_BlankString);
+	else if (isSymbol(TAG(vec))) {
+	    any = 1;
+	    SET_STRING_ELT(s, i, PRINTNAME(TAG(vec)));
+	}
+	else
+	    error(_("getAttrib: invalid type (%s) for TAG"),
+		  type2char(TYPEOF(TAG(vec))));
+    }
+
+    UNPROTECT(1);
+    MARK_NOT_MUTABLE(s);
+    return s;
+}
+
 /* NOTE: For environments serialize.c calls this function to find if
    there is a class attribute in order to reconstruct the object bit
    if needed.  This means the function cannot use OBJECT(vec) == 0 to
@@ -110,42 +144,20 @@ static Rboolean isOneDimensionalArray(SEXP vec)
    serialize.c accordingly.  LT */
 SEXP attribute_hidden getAttrib0(SEXP vec, SEXP name)
 {
-    SEXP s;
-    int len, i, any;
-
     if (name == R_NamesSymbol) {
 	if(isOneDimensionalArray(vec)) {
-	    s = getAttrib(vec, R_DimNamesSymbol);
+	    SEXP s = getAttrib(vec, R_DimNamesSymbol);
 	    if(!isNull(s)) {
 		MARK_NOT_MUTABLE(VECTOR_ELT(s, 0));
 		return VECTOR_ELT(s, 0);
 	    }
 	}
 	if (isList(vec) || isLanguage(vec)) {
-	    len = length(vec);
-	    PROTECT(s = allocVector(STRSXP, len));
-	    i = 0;
-	    any = 0;
-	    for ( ; vec != R_NilValue; vec = CDR(vec), i++) {
-		if (TAG(vec) == R_NilValue)
-		    SET_STRING_ELT(s, i, R_BlankString);
-		else if (isSymbol(TAG(vec))) {
-		    any = 1;
-		    SET_STRING_ELT(s, i, PRINTNAME(TAG(vec)));
-		}
-		else
-		    error(_("getAttrib: invalid type (%s) for TAG"),
-			  type2char(TYPEOF(TAG(vec))));
-	    }
-	    UNPROTECT(1);
-	    if (any) {
-		if (!isNull(s)) MARK_NOT_MUTABLE(s);
-		return (s);
-	    }
-	    return R_NilValue;
+	    return listGetNames(vec);
 	}
+	// else fallthrough
     }
-    for (s = ATTRIB(vec); s != R_NilValue; s = CDR(s))
+    for (SEXP s = ATTRIB(vec); s != R_NilValue; s = CDR(s))
 	if (TAG(s) == name) {
 	    if (name == R_DimNamesSymbol && TYPEOF(CAR(s)) == LISTSXP)
 		error("old list is no longer allowed for dimnames attribute");
