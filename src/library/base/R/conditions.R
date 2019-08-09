@@ -23,23 +23,21 @@
 ## CARE:  try() in ./New-Internal.R  depends on *internal* coding of tryCatch()!
 ## ----   If you change this, be sure to adapt  try().
 tryCatch <- function(expr, ..., finally) {
-    tryCatchList <- function(expr, names, parentenv, handlers) {
+    tryCatchList <- function(expr, names, handlers) {
 	nh <- length(names)
 	if (nh > 1L)
-	    tryCatchOne(tryCatchList(expr, names[-nh], parentenv,
-                                     handlers[-nh]),
-			names[nh], parentenv, handlers[[nh]])
+	    tryCatchOne(tryCatchList(expr, names[-nh], handlers[-nh]),
+			names[nh], handlers[[nh]])
 	else if (nh == 1L)
-	    tryCatchOne(expr, names, parentenv, handlers[[1L]])
+	    tryCatchOne(expr, names, handlers[[1L]])
 	else expr
     }
-    tryCatchOne <- function(expr, name, parentenv, handler) {
-	doTryCatch <- function(expr, name, parentenv, handler) {
-	    .Internal(.addCondHands(name, list(handler), parentenv,
-				    environment(), FALSE))
+    tryCatchOne <- function(expr, name, handler) {
+	doTryCatch <- function(expr, name, handler) {
+	    .Internal(.addCondHands(name, list(handler), environment(), FALSE))
 	    expr
 	}
-	value <- doTryCatch(return(expr), name, parentenv, handler)
+	value <- doTryCatch(return(expr), name, handler)
 	# The return in the call above will exit tryCatchOne unless
 	# the handler is invoked; we only get to this point if the handler
 	# is invoked.  If we get here then the handler will have been
@@ -67,19 +65,17 @@ tryCatch <- function(expr, ..., finally) {
         on.exit(finally)
     handlers <- list(...)
     classes <- names(handlers)
-    parentenv <- parent.frame()
     if (length(classes) != length(handlers))
         stop("bad handler specification")
-    tryCatchList(expr, classes, parentenv, handlers)
+    tryCatchList(expr, classes, handlers)
 }
 
 withCallingHandlers <- function(expr, ...) {
     handlers <- list(...)
     classes <- names(handlers)
-    parentenv <- parent.frame()
     if (length(classes) != length(handlers))
         stop("bad handler specification")
-    .Internal(.addCondHands(classes, handlers, parentenv, NULL, TRUE))
+    .Internal(.addCondHands(classes, handlers, NULL, TRUE))
     expr
 }
 

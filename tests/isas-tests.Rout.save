@@ -2328,7 +2328,7 @@ IS: [1] TRUE
 > if(!inherits(res, 'try-error')) report(is.qr(res))
 > res <- try(as.raw( x ), silent = TRUE)
 Warning message:
-In doTryCatch(return(expr), name, parentenv, handler) :
+In doTryCatch(return(expr), name, handler) :
   out-of-range values treated as 0 in coercion to raw
 > if(!inherits(res, 'try-error')) report(is.raw(res))
 [1] TRUE
@@ -2456,7 +2456,7 @@ Calls: report -> stopifnot
 +    } else   !isall.equal(x, res)})
 > res <- try(as.raw( x ), silent = TRUE)
 Warning message:
-In doTryCatch(return(expr), name, parentenv, handler) :
+In doTryCatch(return(expr), name, handler) :
   out-of-range values treated as 0 in coercion to raw
 > if(!inherits(res, 'try-error'))
 +    report({if(is.raw(x)) { cat('IS: ');all.equal(x, res, tolerance=0)
@@ -2560,7 +2560,7 @@ Calls: report -> stopifnot
 >   if(!inherits(f, 'try-error')) report(identical(f, as.qr( f )))
 > f <- try(as.raw( x ), silent = TRUE)
 Warning message:
-In doTryCatch(return(expr), name, parentenv, handler) :
+In doTryCatch(return(expr), name, handler) :
   out-of-range values treated as 0 in coercion to raw
 >   if(!inherits(f, 'try-error')) report(identical(f, as.raw( f )))
 [1] TRUE
