@@ -1598,7 +1598,7 @@ static SEXP mkHandlerEntry(SEXP klass, SEXP handler, SEXP rho, SEXP result, int 
 #define ENTRY_TARGET_ENVIR(e) VECTOR_ELT(e, 2)
 #define ENTRY_RETURN_RESULT(e) VECTOR_ELT(e, 3)
 
-#define RESULT_SIZE 4
+#define RESULT_SIZE 3
 
 static SEXP R_HandlerResultToken = NULL;
 
@@ -1614,13 +1614,8 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
        more favorable stack context than before the jump. The
        R_HandlerResultToken is used to make sure the result being
        modified is associated with jumping to an exiting handler. */
-    if (result != NULL &&
-	TYPEOF(result) == VECSXP &&
-	XLENGTH(result) == RESULT_SIZE &&
-	VECTOR_ELT(result, 0) == R_NilValue &&
-	VECTOR_ELT(result, RESULT_SIZE - 1) == R_HandlerResultToken) {
+    if (result != NULL && ATTRIB(result) == R_HandlerResultToken)
 	SET_VECTOR_ELT(result, 0, mkString(errbuf));
-    }
 }
 
 SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
@@ -1630,7 +1625,7 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
     PROTECT_INDEX osi;
 
     if (R_HandlerResultToken == NULL) {
-	R_HandlerResultToken = allocVector(VECSXP, 1);
+	R_HandlerResultToken = cons(R_NilValue, R_NilValue);
 	R_PreserveObject(R_HandlerResultToken);
     }
 
@@ -1652,7 +1647,7 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
     oldstack = R_HandlerStack;
 
     PROTECT(result = allocVector(VECSXP, RESULT_SIZE));
-    SET_VECTOR_ELT(result, RESULT_SIZE - 1, R_HandlerResultToken);
+    ATTRIB(result) = R_HandlerResultToken;
     PROTECT_WITH_INDEX(newstack = oldstack, &osi);
 
     for (i = n - 1; i >= 0; i--) {
