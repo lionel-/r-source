@@ -1647,7 +1647,7 @@ add_dummies <- function(dir, Log)
                                 warning = function(e) {
                                     .warnings <<- c(.warnings,
                                                     conditionMessage(e))
-                                    invokeRestart("muffleWarning")
+                                    maybeInvokeRestart("muffleWarning")
                                 })
             msg <- c(.warnings, .error)
             if(length(msg)) {
