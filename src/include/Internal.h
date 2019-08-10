@@ -42,7 +42,7 @@ SEXP do_X11(SEXP, SEXP, SEXP, SEXP);
 SEXP do_abbrev(SEXP, SEXP, SEXP, SEXP);
 SEXP do_abs(SEXP, SEXP, SEXP, SEXP);
 SEXP do_addCondHands(SEXP, SEXP, SEXP, SEXP);
-SEXP do_addCondHands2(SEXP, SEXP, SEXP, SEXP);
+SEXP do_addCondHandsList(SEXP, SEXP, SEXP, SEXP);
 SEXP do_address(SEXP, SEXP, SEXP, SEXP);
 SEXP do_addRestart(SEXP, SEXP, SEXP, SEXP);
 SEXP do_addTryHandlers(SEXP, SEXP, SEXP, SEXP);

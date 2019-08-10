@@ -75,11 +75,7 @@ withCallingHandlers <- function(expr, ...) {
     expr
 }
 localCallingHandlers <- function(..., .envir = parent.frame()) {
-    handlers <- list(...)
-    classes <- names(handlers)
-    if (length(classes) != length(handlers))
-        stop("bad handler specification")
-    invisible(.Internal(.addCondHands2(classes, handlers, NULL, .envir)))
+    invisible(.Internal(.addCondHandsList(.envir, NULL, ...)))
 }
 
 suppressWarnings <- function(expr) {

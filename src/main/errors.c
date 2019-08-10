@@ -1695,45 +1695,49 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     return oldstack;
 }
-SEXP attribute_hidden do_addCondHands2(SEXP call, SEXP op, SEXP args, SEXP rho)
-{
-    SEXP classes, handlers, target, envir, oldstack, result;
-    int i, n;
 
-    checkArity(op, args);
-
-    classes = CAR(args); args = CDR(args);
-    handlers = CAR(args); args = CDR(args);
-    target = CAR(args); args = CDR(args);
-    envir = CAR(args);
-
+static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
     /* Update the `handlerstack` restore point of the frame just below `envir`. */
     RCNTXT *cptr = findExecContextChild(R_GlobalContext, envir);
     if (!cptr)
 	error(_("can't find environment to register condition handlers"));
-    oldstack = cptr->handlerstack;
+    SEXP oldstack = cptr->handlerstack;
 
-    if (classes == R_NilValue || handlers == R_NilValue)
+    if (handlers == R_NilValue)
 	return oldstack;
 
-    if (TYPEOF(classes) != STRSXP || TYPEOF(handlers) != VECSXP ||
-	LENGTH(classes) != LENGTH(handlers))
-	error(_("bad handler data"));
+    SEXP result = PROTECT(allocVector(VECSXP, RESULT_SIZE));
+    ATTRIB(result) = R_HandlerResultToken;
 
-    n = LENGTH(handlers);
+    while (handlers != R_NilValue) {
+	SEXP klass = TAG(handlers);
+	if (klass == R_NilValue) {
+	    cptr->handlerstack = oldstack;
+	    error(_("condition handlers must be supplied with a class"));
+	}
 
-    PROTECT(result = allocVector(VECSXP, RESULT_SIZE));
-    SET_VECTOR_ELT(result, RESULT_SIZE - 1, R_HandlerResultToken);
-
-    for (i = n - 1; i >= 0; i--) {
-	SEXP klass = STRING_ELT(classes, i);
-	SEXP handler = VECTOR_ELT(handlers, i);
-	SEXP entry = mkHandlerEntry(klass, handler, target, result);
+	SEXP entry = mkHandlerEntry(PRINTNAME(klass), CAR(handlers), target, result);
 	cptr->handlerstack = CONS(entry, cptr->handlerstack);
+
+	handlers = CDR(handlers);
     }
 
     UNPROTECT(1);
     return oldstack;
+}
+
+SEXP attribute_hidden do_addCondHandsList(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    checkArity(op, args);
+
+    SEXP envir = CAR(args); args = CDR(args);
+    SEXP target = CAR(args); args = CDR(args);
+
+    SEXP handlers = PROTECT(listReverse(args));
+    SEXP old = addHandlers(handlers, envir, target);
+
+    UNPROTECT(1);
+    return old;
 }
 
 SEXP attribute_hidden do_resetCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)

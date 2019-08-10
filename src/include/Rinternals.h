@@ -1487,6 +1487,7 @@ void R_orderVector1(int *indx, int n, SEXP x,       Rboolean nalast, Rboolean de
 #define list5			Rf_list5
 #define list6			Rf_list6
 #define listAppend		Rf_listAppend
+#define listReverse		Rf_listReverse
 #define match			Rf_match
 #define matchE			Rf_matchE
 #define mkChar			Rf_mkChar
