@@ -1695,6 +1695,46 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     return oldstack;
 }
+SEXP attribute_hidden do_addCondHands2(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    SEXP classes, handlers, target, envir, oldstack, result;
+    int i, n;
+
+    checkArity(op, args);
+
+    classes = CAR(args); args = CDR(args);
+    handlers = CAR(args); args = CDR(args);
+    target = CAR(args); args = CDR(args);
+    envir = CAR(args);
+
+    /* Update the `handlerstack` restore point of the frame just below `envir`. */
+    RCNTXT *cptr = findExecContextChild(R_GlobalContext, envir);
+    if (!cptr)
+	error(_("can't find environment to register condition handlers"));
+    oldstack = cptr->handlerstack;
+
+    if (classes == R_NilValue || handlers == R_NilValue)
+	return oldstack;
+
+    if (TYPEOF(classes) != STRSXP || TYPEOF(handlers) != VECSXP ||
+	LENGTH(classes) != LENGTH(handlers))
+	error(_("bad handler data"));
+
+    n = LENGTH(handlers);
+
+    PROTECT(result = allocVector(VECSXP, RESULT_SIZE));
+    SET_VECTOR_ELT(result, RESULT_SIZE - 1, R_HandlerResultToken);
+
+    for (i = n - 1; i >= 0; i--) {
+	SEXP klass = STRING_ELT(classes, i);
+	SEXP handler = VECTOR_ELT(handlers, i);
+	SEXP entry = mkHandlerEntry(klass, handler, target, result);
+	cptr->handlerstack = CONS(entry, cptr->handlerstack);
+    }
+
+    UNPROTECT(1);
+    return oldstack;
+}
 
 SEXP attribute_hidden do_resetCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
 {

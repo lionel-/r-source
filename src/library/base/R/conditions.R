@@ -71,12 +71,15 @@ tryCatch <- function(expr, ..., finally) {
 }
 
 withCallingHandlers <- function(expr, ...) {
+    localCallingHandlers(...)
+    expr
+}
+localCallingHandlers <- function(..., .envir = parent.frame()) {
     handlers <- list(...)
     classes <- names(handlers)
     if (length(classes) != length(handlers))
         stop("bad handler specification")
-    .Internal(.addCondHands(classes, handlers, NULL))
-    expr
+    invisible(.Internal(.addCondHands2(classes, handlers, NULL, .envir)))
 }
 
 suppressWarnings <- function(expr) {

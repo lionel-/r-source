@@ -724,6 +724,24 @@ SEXP attribute_hidden do_parentframe(SEXP call, SEXP op, SEXP args, SEXP rho)
     return R_GlobalEnv;
 }
 
+/* findExecContextChild - Find the child of a context frame older or
+   equal to `cptr` that has `envir` as execution environment (the
+   `cloenv` field). */
+RCNTXT * attribute_hidden findExecContextChild(RCNTXT *cptr, SEXP envir) {
+    if (cptr->cloenv == envir)
+	return NULL;
+
+    RCNTXT * prev = cptr;
+    while (cptr->nextcontext) {
+	if (cptr->callflag & CTXT_FUNCTION && cptr->cloenv == envir)
+	    return prev;
+	prev = cptr;
+	cptr = cptr->nextcontext;
+    }
+
+    return NULL;
+}
+
 /* R_ToplevelExec - call fun(data) within a top level context to
    insure that this functin cannot be left by a LONGJMP.  R errors in
    the call to fun will result in a jump to top level. The return
