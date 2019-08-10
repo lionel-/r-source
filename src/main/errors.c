@@ -1580,14 +1580,15 @@ static char * R_ConciseTraceback(SEXP call, int skip)
 
 
 
-static SEXP mkHandlerEntry(SEXP klass, SEXP handler, SEXP rho, SEXP result, int calling)
+static SEXP mkHandlerEntry(SEXP klass, SEXP handler, SEXP rho, SEXP result)
 {
     SEXP entry = allocVector(VECSXP, 5);
     SET_VECTOR_ELT(entry, 0, klass);
     SET_VECTOR_ELT(entry, 1, handler);
     SET_VECTOR_ELT(entry, 2, rho);
     SET_VECTOR_ELT(entry, 3, result);
-    SETLEVELS(entry, calling);
+    if (rho == R_NilValue)
+	SETLEVELS(entry, 1);
     return entry;
 }
 
@@ -1621,7 +1622,7 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
 SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
     SEXP classes, handlers, target, oldstack, newstack, result;
-    int calling, i, n;
+    int i, n;
     PROTECT_INDEX osi;
 
     if (R_HandlerResultToken == NULL) {
@@ -1633,8 +1634,7 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     classes = CAR(args); args = CDR(args);
     handlers = CAR(args); args = CDR(args);
-    target = CAR(args); args = CDR(args);
-    calling = asLogical(CAR(args));
+    target = CAR(args);
 
     if (classes == R_NilValue || handlers == R_NilValue)
 	return R_HandlerStack;
@@ -1653,7 +1653,7 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
     for (i = n - 1; i >= 0; i--) {
 	SEXP klass = STRING_ELT(classes, i);
 	SEXP handler = VECTOR_ELT(handlers, i);
-	SEXP entry = mkHandlerEntry(klass, handler, target, result, calling);
+	SEXP entry = mkHandlerEntry(klass, handler, target, result);
 	REPROTECT(newstack = CONS(entry, newstack), osi);
     }
 
@@ -1885,7 +1885,7 @@ R_InsertRestartHandlers(RCNTXT *cptr, const char *cname)
     /**** need more here to keep recursive errors in browser? */
     rho = cptr->cloenv;
     PROTECT(klass = mkChar("error"));
-    entry = mkHandlerEntry(klass, R_RestartToken, rho, R_NilValue, TRUE);
+    entry = mkHandlerEntry(klass, R_RestartToken, R_NilValue, R_NilValue);
     R_HandlerStack = CONS(entry, R_HandlerStack);
     UNPROTECT(1);
     PROTECT(name = mkString(cname));

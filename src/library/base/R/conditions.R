@@ -34,7 +34,7 @@ tryCatch <- function(expr, ..., finally) {
     }
     tryCatchOne <- function(expr, name, handler) {
 	doTryCatch <- function(expr, name, handler) {
-	    .Internal(.addCondHands(name, list(handler), environment(), FALSE))
+	    .Internal(.addCondHands(name, list(handler), environment()))
 	    expr
 	}
 	value <- doTryCatch(return(expr), name, handler)
@@ -75,7 +75,7 @@ withCallingHandlers <- function(expr, ...) {
     classes <- names(handlers)
     if (length(classes) != length(handlers))
         stop("bad handler specification")
-    .Internal(.addCondHands(classes, handlers, NULL, TRUE))
+    .Internal(.addCondHands(classes, handlers, NULL))
     expr
 }
 
