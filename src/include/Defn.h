@@ -1183,6 +1183,7 @@ void R_reInitTempDir(int);
 void InitTypeTables(void);
 void initStack(void);
 void InitS3DefaultTypes(void);
+void InitErrors();
 void internalTypeCheck(SEXP, SEXP, SEXPTYPE);
 Rboolean isMethodsDispatchOn(void);
 int isValidName(const char *);

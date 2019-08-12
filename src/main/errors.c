@@ -50,6 +50,49 @@ static int inPrintWarnings = 0;
 static int immediateWarning = 0;
 static int noBreakWarning = 0;
 
+/* Initialised during R startup. */
+static SEXP R_HandlerResultToken = NULL;
+static SEXP R_ErrorsChars = NULL;
+static SEXP R_SimpleErrorChar = NULL;
+static SEXP R_ErrorChar = NULL;
+static SEXP R_ConditionChar = NULL;
+static SEXP R_InterruptChar = NULL;
+static SEXP R_BrowserChar = NULL;
+static SEXP R_TryRestartChar = NULL;
+static SEXP R_AbortChar = NULL;
+
+/* Only cache objects related to error handling. Error throwing should
+   work without initialisation so we can throw during early stages of
+   R startup. */
+void attribute_hidden InitErrors() {
+    R_HandlerResultToken = cons(R_NilValue, R_NilValue);
+    R_PreserveObject(R_HandlerResultToken);
+
+    R_ErrorsChars = allocVector(STRSXP, 7);
+    R_PreserveObject(R_ErrorsChars);
+
+    R_SimpleErrorChar = mkChar("simpleError");
+    SET_STRING_ELT(R_ErrorsChars, 0, R_SimpleErrorChar);
+
+    R_ErrorChar = mkChar("error");
+    SET_STRING_ELT(R_ErrorsChars, 1, R_ErrorChar);
+
+    R_ConditionChar = mkChar("condition");
+    SET_STRING_ELT(R_ErrorsChars, 2, R_ConditionChar);
+
+    R_InterruptChar = mkChar("interrupt");
+    SET_STRING_ELT(R_ErrorsChars, 3, R_InterruptChar);
+
+    R_BrowserChar = mkChar("browser");
+    SET_STRING_ELT(R_ErrorsChars, 4, R_BrowserChar);
+
+    R_TryRestartChar = mkChar("tryRestart");
+    SET_STRING_ELT(R_ErrorsChars, 5, R_TryRestartChar);
+
+    R_AbortChar = mkChar("abort");
+    SET_STRING_ELT(R_ErrorsChars, 6, R_AbortChar);
+}
+
 static void try_jump_to_restart(void);
 // The next is crucial to the use of NORET attributes.
 static void NORET
@@ -882,10 +925,7 @@ void NORET errorcall_cpy(SEXP call, const char *format, ...)
 SEXP attribute_hidden do_geterrmessage(SEXP call, SEXP op, SEXP args, SEXP env)
 {
     checkArity(op, args);
-    SEXP res = PROTECT(allocVector(STRSXP, 1));
-    SET_STRING_ELT(res, 0, mkChar(errbuf));
-    UNPROTECT(1);
-    return res;
+    return mkString(errbuf);
 }
 
 void error(const char *format, ...)
@@ -908,10 +948,10 @@ static void try_jump_to_restart(void)
 	if (TYPEOF(restart) == VECSXP && LENGTH(restart) > 1) {
 	    SEXP name = VECTOR_ELT(restart, 0);
 	    if (TYPEOF(name) == STRSXP && LENGTH(name) == 1) {
-		const char *cname = CHAR(STRING_ELT(name, 0));
-		if (! strcmp(cname, "browser") ||
-		    ! strcmp(cname, "tryRestart") ||
-		    ! strcmp(cname, "abort")) /**** move abort eventually? */
+		name = STRING_ELT(name, 0);
+		if (name == R_BrowserChar ||
+		    name == R_TryRestartChar ||
+		    name == R_AbortChar) /**** move abort eventually? */
 		    invokeRestart(restart, R_NilValue);
 	    }
 	}
@@ -1601,8 +1641,6 @@ static SEXP mkHandlerEntry(SEXP klass, SEXP handler, SEXP rho, SEXP result)
 
 #define RESULT_SIZE 3
 
-static SEXP R_HandlerResultToken = NULL;
-
 void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
 {
     /* The internal error handling mechanism stores the error message
@@ -1624,11 +1662,6 @@ SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
     SEXP classes, handlers, target, oldstack, newstack, result;
     int i, n;
     PROTECT_INDEX osi;
-
-    if (R_HandlerResultToken == NULL) {
-	R_HandlerResultToken = cons(R_NilValue, R_NilValue);
-	R_PreserveObject(R_HandlerResultToken);
-    }
 
     checkArity(op, args);
 
@@ -1674,10 +1707,10 @@ static SEXP findSimpleErrorHandler(void)
 {
     SEXP list;
     for (list = R_HandlerStack; list != R_NilValue; list = CDR(list)) {
-	SEXP entry = CAR(list);
-	if (! strcmp(CHAR(ENTRY_CLASS(entry)), "simpleError") ||
-	    ! strcmp(CHAR(ENTRY_CLASS(entry)), "error") ||
-	    ! strcmp(CHAR(ENTRY_CLASS(entry)), "condition"))
+	SEXP entry_class = ENTRY_CLASS(CAR(list));
+	if (entry_class == R_SimpleErrorChar ||
+	    entry_class == R_ErrorChar ||
+	    entry_class == R_ConditionChar)
 	    return list;
     }
     return R_NilValue;
@@ -1769,10 +1802,9 @@ static SEXP findConditionHandler(SEXP cond)
 
     /**** need some changes here to allow conditions to be S4 classes */
     for (list = R_HandlerStack; list != R_NilValue; list = CDR(list)) {
-	SEXP entry = CAR(list);
+	SEXP entry_class = ENTRY_CLASS(CAR(list));
 	for (i = 0; i < LENGTH(classes); i++)
-	    if (! strcmp(CHAR(ENTRY_CLASS(entry)),
-			 CHAR(STRING_ELT(classes, i))))
+	    if (entry_class == STRING_ELT(classes, i))
 		return list;
     }
     return R_NilValue;
@@ -1819,9 +1851,9 @@ static SEXP findInterruptHandler(void)
 {
     SEXP list;
     for (list = R_HandlerStack; list != R_NilValue; list = CDR(list)) {
-	SEXP entry = CAR(list);
-	if (! strcmp(CHAR(ENTRY_CLASS(entry)), "interrupt") ||
-	    ! strcmp(CHAR(ENTRY_CLASS(entry)), "condition"))
+	SEXP entry_class = ENTRY_CLASS(CAR(list));
+	if (entry_class == R_InterruptChar ||
+	    entry_class == R_ConditionChar)
 	    return list;
     }
     return R_NilValue;
@@ -1833,8 +1865,8 @@ static SEXP getInterruptCondition(void)
     SEXP cond, klass;
     PROTECT(cond = allocVector(VECSXP, 0));
     PROTECT(klass = allocVector(STRSXP, 2));
-    SET_STRING_ELT(klass, 0, mkChar("interrupt"));
-    SET_STRING_ELT(klass, 1, mkChar("condition"));
+    SET_STRING_ELT(klass, 0, R_InterruptChar);
+    SET_STRING_ELT(klass, 1, R_ConditionChar);
     classgets(cond, klass);
     UNPROTECT(2);
     return cond;
@@ -1884,7 +1916,7 @@ R_InsertRestartHandlers(RCNTXT *cptr, const char *cname)
 
     /**** need more here to keep recursive errors in browser? */
     rho = cptr->cloenv;
-    PROTECT(klass = mkChar("error"));
+    PROTECT(klass = R_ErrorChar);
     entry = mkHandlerEntry(klass, R_RestartToken, R_NilValue, R_NilValue);
     R_HandlerStack = CONS(entry, R_HandlerStack);
     UNPROTECT(1);
