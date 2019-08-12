@@ -1657,45 +1657,6 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
 	SET_VECTOR_ELT(result, 0, mkString(errbuf));
 }
 
-SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
-{
-    SEXP classes, handlers, target, oldstack, newstack, result;
-    int i, n;
-    PROTECT_INDEX osi;
-
-    checkArity(op, args);
-
-    classes = CAR(args); args = CDR(args);
-    handlers = CAR(args); args = CDR(args);
-    target = CAR(args);
-
-    if (classes == R_NilValue || handlers == R_NilValue)
-	return R_HandlerStack;
-
-    if (TYPEOF(classes) != STRSXP || TYPEOF(handlers) != VECSXP ||
-	LENGTH(classes) != LENGTH(handlers))
-	error(_("bad handler data"));
-
-    n = LENGTH(handlers);
-    oldstack = R_HandlerStack;
-
-    PROTECT(result = allocVector(VECSXP, RESULT_SIZE));
-    ATTRIB(result) = R_HandlerResultToken;
-    PROTECT_WITH_INDEX(newstack = oldstack, &osi);
-
-    for (i = n - 1; i >= 0; i--) {
-	SEXP klass = STRING_ELT(classes, i);
-	SEXP handler = VECTOR_ELT(handlers, i);
-	SEXP entry = mkHandlerEntry(klass, handler, target, result);
-	REPROTECT(newstack = CONS(entry, newstack), osi);
-    }
-
-    R_HandlerStack = newstack;
-    UNPROTECT(2);
-
-    return oldstack;
-}
-
 static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
     /* Update the `handlerstack` restore point of the frame just below `envir`. */
     RCNTXT *cptr = findExecContextChild(R_GlobalContext, envir);
@@ -1722,6 +1683,9 @@ static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
 	handlers = CDR(handlers);
     }
 
+    if (cptr == R_GlobalContext)
+	R_HandlerStack = cptr->handlerstack;
+
     UNPROTECT(1);
     return oldstack;
 }
@@ -1734,6 +1698,22 @@ SEXP attribute_hidden do_addCondHandsList(SEXP call, SEXP op, SEXP args, SEXP rh
     SEXP target = CAR(args); args = CDR(args);
 
     SEXP handlers = PROTECT(listReverse(args));
+    SEXP old = addHandlers(handlers, envir, target);
+
+    UNPROTECT(1);
+    return old;
+}
+SEXP attribute_hidden do_addCondHand(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    checkArity(op, args);
+
+    SEXP envir = CAR(args); args = CDR(args);
+    SEXP target = CAR(args); args = CDR(args);
+    SEXP klass = CAR(args); args = CDR(args);
+    SEXP handler = CAR(args);
+
+    SEXP handlers = PROTECT(list1(handler));
+    TAG(handlers) = klass;
     SEXP old = addHandlers(handlers, envir, target);
 
     UNPROTECT(1);

@@ -728,9 +728,6 @@ SEXP attribute_hidden do_parentframe(SEXP call, SEXP op, SEXP args, SEXP rho)
    equal to `cptr` that has `envir` as execution environment (the
    `cloenv` field). */
 RCNTXT * attribute_hidden findExecContextChild(RCNTXT *cptr, SEXP envir) {
-    if (cptr->cloenv == envir)
-	return NULL;
-
     RCNTXT * prev = cptr;
     while (cptr->nextcontext) {
 	if (cptr->callflag & CTXT_FUNCTION && cptr->cloenv == envir)

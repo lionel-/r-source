@@ -34,7 +34,7 @@ tryCatch <- function(expr, ..., finally) {
     }
     tryCatchOne <- function(expr, name, handler) {
 	doTryCatch <- function(expr, name, handler) {
-	    .Internal(.addCondHands(name, list(handler), environment()))
+	    .Internal(.addCondHand(environment(), environment(), as.name(name), handler))
 	    expr
 	}
 	value <- doTryCatch(return(expr), name, handler)
