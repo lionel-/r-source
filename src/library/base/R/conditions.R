@@ -33,33 +33,17 @@ tryCatch <- function(expr, ..., finally) {
 	else expr
     }
     tryCatchOne <- function(expr, name, handler) {
+        # Technically, `doTryCatch()` is no longer needed, but
+        # packages are relying on the call stack structure of
+        # `tryCatch()`.
 	doTryCatch <- function(expr, name, handler) {
+            # If an exit handler is invoked, `doTryCatch()` returns
+            # with the value of its invokation. Otherwise, it returns
+            # with the value of `expr`.
 	    .Internal(.addCondHand(environment(), environment(), as.name(name), handler))
 	    expr
 	}
-	value <- doTryCatch(return(expr), name, handler)
-	# The return in the call above will exit tryCatchOne unless
-	# the handler is invoked; we only get to this point if the handler
-	# is invoked.  If we get here then the handler will have been
-	# popped off the internal handler stack.
-	if (is.null(value[[1L]])) {
-	    # a simple error; message is stored internally
-	    # and call is in result; this defers all allocs until
-	    # after the jump
-	    msg <- .Internal(geterrmessage())
-	    call <- value[[2L]]
-	    cond <- simpleError(msg, call)
-	}
-        else if (is.character(value[[1L]])) {
-            # if the jump for a simple error is intercepted to handle
-            # an on.exit() action then the error message is encoded as
-            # a character object at that point
-	    msg <- value[[1L]]
-	    call <- value[[2L]]
-	    cond <- simpleError(msg, call)
-        }
-	else cond <- value[[1L]]
-	value[[3L]](cond)
+	doTryCatch(expr, name, handler)
     }
     if (! missing(finally))
         on.exit(finally)

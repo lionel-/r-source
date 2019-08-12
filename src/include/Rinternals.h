@@ -885,6 +885,7 @@ attribute_hidden
 extern
 #endif
 SEXP	R_RestartToken;     /* Marker for restarted function calls */
+SEXP	R_ExitingHandlerToken; /* Marker for exiting handler jumps */
 
 /* Symbol Table Shortcuts */
 LibExtern SEXP	R_AsCharacterSymbol;/* "as.character" */

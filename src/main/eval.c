@@ -1717,6 +1717,9 @@ SEXP applyClosure(SEXP call, SEXP op, SEXP arglist, SEXP rho, SEXP suppliedvars)
     return val;
 }
 
+/* Defined in errors.c */
+SEXP R_invokeExitingHandler(SEXP);
+
 static R_INLINE SEXP R_execClosure(SEXP call, SEXP newrho, SEXP sysparent,
                                    SEXP rho, SEXP arglist, SEXP op)
 {
@@ -1769,7 +1772,9 @@ static R_INLINE SEXP R_execClosure(SEXP call, SEXP newrho, SEXP sysparent,
 		cntxt.callflag = CTXT_RETURN;  /* turn restart off */
 		R_ReturnedValue = R_NilValue;  /* remove restart token */
 		cntxt.returnValue = eval(body, newrho);
-	    } else
+	    } else if (R_ReturnedValue == R_ExitingHandlerToken)
+		cntxt.returnValue = R_invokeExitingHandler(R_ReturnedValue);
+	    else
 		cntxt.returnValue = R_ReturnedValue;
 	}
 	else

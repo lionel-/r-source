@@ -52,6 +52,12 @@ static int noBreakWarning = 0;
 
 /* Initialised during R startup. */
 static SEXP R_HandlerResultToken = NULL;
+static SEXP R_SimpleErrorCondition = NULL;
+
+static SEXP R_HandlerSymbol = NULL;
+static SEXP R_ConditionSymbol = NULL;
+static SEXP R_InvokeExitingCall = NULL;
+
 static SEXP R_ErrorsChars = NULL;
 static SEXP R_SimpleErrorChar = NULL;
 static SEXP R_ErrorChar = NULL;
@@ -67,6 +73,19 @@ static SEXP R_AbortChar = NULL;
 void attribute_hidden InitErrors() {
     R_HandlerResultToken = cons(R_NilValue, R_NilValue);
     R_PreserveObject(R_HandlerResultToken);
+
+    R_ExitingHandlerToken = cons(R_NilValue, R_NilValue);
+    R_PreserveObject(R_ExitingHandlerToken);
+
+
+    R_HandlerSymbol = install("handler");
+    R_ConditionSymbol = install("condition");
+
+    R_InvokeExitingCall = lang2(R_HandlerSymbol, R_ConditionSymbol);
+    R_PreserveObject(R_InvokeExitingCall);
+
+
+    /* Cached CHARSXP */
 
     R_ErrorsChars = allocVector(STRSXP, 7);
     R_PreserveObject(R_ErrorsChars);
@@ -91,6 +110,27 @@ void attribute_hidden InitErrors() {
 
     R_AbortChar = mkChar("abort");
     SET_STRING_ELT(R_ErrorsChars, 6, R_AbortChar);
+
+
+    /* Simple error mold */
+
+    R_SimpleErrorCondition = allocVector(VECSXP, 2);
+    R_PreserveObject(R_SimpleErrorCondition);
+
+    SEXP fields = PROTECT(allocVector(STRSXP, 2));
+    setAttrib(R_SimpleErrorCondition, R_NamesSymbol, fields);
+    UNPROTECT(1);
+
+    SET_STRING_ELT(fields, 0, mkChar("message"));
+    SET_STRING_ELT(fields, 1, mkChar("call"));
+
+    SEXP classes = PROTECT(allocVector(STRSXP, 3));
+    setAttrib(R_SimpleErrorCondition, R_ClassSymbol, classes);
+    UNPROTECT(1);
+
+    SET_STRING_ELT(classes, 0, mkChar("simpleError"));
+    SET_STRING_ELT(classes, 1, mkChar("error"));
+    SET_STRING_ELT(classes, 2, mkChar("condition"));
 }
 
 static void try_jump_to_restart(void);
@@ -1641,7 +1681,7 @@ static SEXP mkHandlerEntry(SEXP klass, SEXP handler, SEXP rho, SEXP result)
 
 #define RESULT_SIZE 3
 
-void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
+void attribute_hidden R_FixupExitingHandlerResult(SEXP value)
 {
     /* The internal error handling mechanism stores the error message
        in 'errbuf'.  If an on.exit() action is processed while jumping
@@ -1653,8 +1693,11 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
        more favorable stack context than before the jump. The
        R_HandlerResultToken is used to make sure the result being
        modified is associated with jumping to an exiting handler. */
-    if (result != NULL && ATTRIB(result) == R_HandlerResultToken)
-	SET_VECTOR_ELT(result, 0, mkString(errbuf));
+    if (value == R_ExitingHandlerToken) {
+	SEXP result = CAR(value);
+	if (VECTOR_ELT(result, 0) == R_NilValue)
+	    SET_VECTOR_ELT(result, 0, mkString(errbuf));
+    }
 }
 
 static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
@@ -1768,7 +1811,56 @@ static void NORET gotoExitingHandler(SEXP cond, SEXP call, SEXP entry)
     SET_VECTOR_ELT(result, 0, cond);
     SET_VECTOR_ELT(result, 1, call);
     SET_VECTOR_ELT(result, 2, ENTRY_HANDLER(entry));
-    findcontext(CTXT_FUNCTION, rho, result);
+
+    SETCAR(R_ExitingHandlerToken, result);
+    findcontext(CTXT_FUNCTION, rho, R_ExitingHandlerToken);
+}
+
+static SEXP simpleError(SEXP msg, SEXP call)
+{
+    SEXP err = PROTECT(shallow_duplicate(R_SimpleErrorCondition));
+
+    SET_VECTOR_ELT(err, 0, msg);
+    SET_VECTOR_ELT(err, 1, call);
+
+    UNPROTECT(1);
+    return err;
+}
+
+SEXP attribute_hidden R_invokeExitingHandler(SEXP token)
+{
+    SEXP result = CAR(token);
+
+    /* Allow GC to reclaim handler; `token` is currently protected via
+       `R_ReturnedValue`. */
+    SETCAR(R_ExitingHandlerToken, R_NilValue);
+
+    SEXP condition = VECTOR_ELT(result, 0);
+    SEXP call = VECTOR_ELT(result, 1);
+
+    switch (TYPEOF(condition)) {
+    case NILSXP: {
+	SEXP msg = PROTECT(mkString(errbuf));
+	condition = simpleError(msg, call);
+	UNPROTECT(1);
+	break;
+    }
+    case STRSXP:
+	condition = simpleError(condition, call);
+	break;
+    default:
+	break;
+    }
+    PROTECT(condition);
+
+    SEXP mask = PROTECT(NewEnvironment(R_NilValue, R_NilValue, R_GlobalEnv));
+    defineVar(R_ConditionSymbol, condition, mask);
+    defineVar(R_HandlerSymbol, VECTOR_ELT(result, 2), mask);
+
+    SEXP out = eval(R_InvokeExitingCall, mask);
+
+    UNPROTECT(2);
+    return out;
 }
 
 static void vsignalError(SEXP call, const char *format, va_list ap)
