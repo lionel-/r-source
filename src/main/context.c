@@ -282,10 +282,18 @@ void begincontext(RCNTXT * cptr, int flags,
 
 void endcontext(RCNTXT * cptr)
 {
-    void R_FixupExitingHandlerResult(SEXP); /* defined in error.x */
+    /* defined in error.x */
+    void R_FixupExitingHandlerResult(SEXP);
+    SEXP R_invokeExitingHandler(SEXP);
+
+    /* Run exiting condition handler in the context of on.exit() handlers. */
+    if (cptr->returnValue == R_ExitingHandlerToken)
+	cptr->returnValue = R_invokeExitingHandler(cptr->returnValue);
+
     R_HandlerStack = cptr->handlerstack;
     R_RestartStack = cptr->restartstack;
     RCNTXT *jumptarget = cptr->jumptarget;
+
     if (cptr->cloenv != R_NilValue && cptr->conexit != R_NilValue ) {
 	SEXP s = cptr->conexit;
 	Rboolean savevis = R_Visible;

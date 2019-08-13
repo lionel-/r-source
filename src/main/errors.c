@@ -1813,6 +1813,8 @@ static void NORET gotoExitingHandler(SEXP cond, SEXP call, SEXP entry)
     SET_VECTOR_ELT(result, 2, ENTRY_HANDLER(entry));
 
     SETCAR(R_ExitingHandlerToken, result);
+    SETCDR(R_ExitingHandlerToken, R_HandlerStack);
+
     findcontext(CTXT_FUNCTION, rho, R_ExitingHandlerToken);
 }
 
@@ -1829,11 +1831,15 @@ static SEXP simpleError(SEXP msg, SEXP call)
 
 SEXP attribute_hidden R_invokeExitingHandler(SEXP token)
 {
+    /* Restore state of handler stack before the jump. The handler
+       being invoked has been popped off this stack. */
+    R_HandlerStack = CDR(token);
     SEXP result = CAR(token);
 
-    /* Allow GC to reclaim handler; `token` is currently protected via
-       `R_ReturnedValue`. */
+    /* Allow GC to reclaim handler and stack; `token` is currently
+       protected via `R_ReturnedValue`. */
     SETCAR(R_ExitingHandlerToken, R_NilValue);
+    SETCDR(R_ExitingHandlerToken, R_NilValue);
 
     SEXP condition = VECTOR_ELT(result, 0);
     SEXP call = VECTOR_ELT(result, 1);
