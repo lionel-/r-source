@@ -287,7 +287,7 @@ void endcontext(RCNTXT * cptr)
     SEXP R_invokeExitingHandler(SEXP);
 
     /* Run exiting condition handler in the context of on.exit() handlers. */
-    if (cptr->returnValue == R_ExitingHandlerToken)
+    if (cptr->returnValue && ATTRIB(cptr->returnValue) == R_ExitingHandlerToken)
 	cptr->returnValue = R_invokeExitingHandler(cptr->returnValue);
 
     R_HandlerStack = cptr->handlerstack;

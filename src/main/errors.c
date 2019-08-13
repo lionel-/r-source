@@ -76,6 +76,7 @@ void attribute_hidden InitErrors() {
 
     R_ExitingHandlerToken = cons(R_NilValue, R_NilValue);
     R_PreserveObject(R_ExitingHandlerToken);
+    SET_TAG(R_ExitingHandlerToken, install("ExitingHandlerToken"));
 
 
     R_HandlerSymbol = install("handler");
@@ -1693,7 +1694,7 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP value)
        more favorable stack context than before the jump. The
        R_HandlerResultToken is used to make sure the result being
        modified is associated with jumping to an exiting handler. */
-    if (value == R_ExitingHandlerToken) {
+    if (value && ATTRIB(value) == R_ExitingHandlerToken) {
 	SEXP result = CAR(value);
 	if (VECTOR_ELT(result, 0) == R_NilValue)
 	    SET_VECTOR_ELT(result, 0, mkString(errbuf));
@@ -1812,10 +1813,12 @@ static void NORET gotoExitingHandler(SEXP cond, SEXP call, SEXP entry)
     SET_VECTOR_ELT(result, 1, call);
     SET_VECTOR_ELT(result, 2, ENTRY_HANDLER(entry));
 
-    SETCAR(R_ExitingHandlerToken, result);
-    SETCDR(R_ExitingHandlerToken, R_HandlerStack);
+    /* Store current handler stack with the handler, so it can be
+       restored during invokation. */
+    SEXP handlerData = PROTECT(cons(result, R_HandlerStack));
+    ATTRIB(handlerData) = R_ExitingHandlerToken;
 
-    findcontext(CTXT_FUNCTION, rho, R_ExitingHandlerToken);
+    findcontext(CTXT_FUNCTION, rho, handlerData);
 }
 
 static SEXP simpleError(SEXP msg, SEXP call)
@@ -1829,17 +1832,13 @@ static SEXP simpleError(SEXP msg, SEXP call)
     return err;
 }
 
-SEXP attribute_hidden R_invokeExitingHandler(SEXP token)
+SEXP attribute_hidden R_invokeExitingHandler(SEXP data)
 {
+    SEXP result = CAR(data);
+
     /* Restore state of handler stack before the jump. The handler
        being invoked has been popped off this stack. */
-    R_HandlerStack = CDR(token);
-    SEXP result = CAR(token);
-
-    /* Allow GC to reclaim handler and stack; `token` is currently
-       protected via `R_ReturnedValue`. */
-    SETCAR(R_ExitingHandlerToken, R_NilValue);
-    SETCDR(R_ExitingHandlerToken, R_NilValue);
+    R_HandlerStack = CDR(data);
 
     SEXP condition = VECTOR_ELT(result, 0);
     SEXP call = VECTOR_ELT(result, 1);
