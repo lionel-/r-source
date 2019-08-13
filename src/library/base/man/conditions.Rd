@@ -24,6 +24,8 @@
 \alias{warningCondition}
 \alias{tryCatch}
 \alias{withCallingHandlers}
+\alias{localCatch}
+\alias{localCallingHandlers}
 \alias{withRestarts}
 \alias{suspendInterrupts}
 \alias{allowInterrupts}
@@ -48,6 +50,9 @@
 \usage{
 tryCatch(expr, \dots, finally)
 withCallingHandlers(expr, \dots)
+
+localCatch(\dots)
+localCallingHandlers(\dots)
 
 signalCondition(cond)
 
@@ -102,6 +107,9 @@ allowInterrupts(expr)
   \item{x}{object.}
   \item{class}{character string naming a condition class.}
   \item{\dots}{additional arguments; see details below.}
+  \item{.envir}{the environment of a running function in which to add
+    condition handlers. The default (the current frame) should rarely be
+    overidden.}
 }
 
 \details{
@@ -139,6 +147,9 @@ allowInterrupts(expr)
    evaluated in the context in which \code{tryCatch} was called; that
    is, the handlers supplied to the current \code{tryCatch} call are
    not active when the \code{finally} expression is evaluated.
+   Alternatively, use \code{localCatch} inside a function to add
+   handlers locally. The handlers remain active for the duration of the
+   function.
 
    Handlers provided in the \code{\dots} argument to \code{tryCatch}
    are established for the duration of the evaluation of \code{expr}.
@@ -157,14 +168,16 @@ allowInterrupts(expr)
    returned by the handler is returned as the value of the
    \code{tryCatch} call.
 
-   Calling handlers are established by \code{withCallingHandlers}.  If
-   a condition is signaled and the applicable handler is a calling
-   handler, then the handler is called by \code{signalCondition} in
-   the context where the condition was signaled but with the available
-   handlers restricted to those below the handler called in the
-   handler stack.  If the handler returns, then the next handler is
-   tried; once the last handler has been tried, \code{signalCondition}
-   returns \code{NULL}.
+   Calling handlers are established by \code{withCallingHandlers} or
+   \code{localCallingHandlers}. If a condition is signaled and the
+   applicable handler is a calling handler, then the handler is called
+   by \code{signalCondition} in the context where the condition was
+   signaled but with the available handlers restricted to those below
+   the handler called in the handler stack.  If the handler returns,
+   then the next handler is tried; once the last handler has been tried,
+   \code{signalCondition} returns \code{NULL}. Like \code{localCatch},
+   \code{localCallingHandlers} adds the handlers locally. They remain
+   active for the duration of the current function.
 
    User interrupts signal a condition of class \code{interrupt} that
    inherits directly from class \code{condition} before executing the

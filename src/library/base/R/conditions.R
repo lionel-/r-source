@@ -53,6 +53,9 @@ tryCatch <- function(expr, ..., finally) {
         stop("bad handler specification")
     tryCatchList(expr, classes, handlers)
 }
+localCatch <- function(..., .envir = parent.frame()) {
+    invisible(.Internal(.addCondHandsList(.envir, .envir, ...)))
+}
 
 withCallingHandlers <- function(expr, ...) {
     localCallingHandlers(...)

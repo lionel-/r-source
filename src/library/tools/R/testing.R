@@ -607,7 +607,7 @@ testInstalledBasic <- function(scope = c("basic", "devel", "both", "internet"))
     Sys.setlocale("LC_COLLATE", "C")
     tests1 <- c("eval-etc", "simple-true", "arith-true", "lm-tests",
                 "ok-errors", "method-dispatch", "array-subset",
-                "any-all", "d-p-q-r-tests")
+                "any-all", "d-p-q-r-tests", "condition-tests")
     tests2 <- c("complex", "print-tests", "lapack", "datasets", "datetime",
                 "iec60559")
     tests3 <- c("reg-tests-1a", "reg-tests-1b", "reg-tests-1c", "reg-tests-2",
