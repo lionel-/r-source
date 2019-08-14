@@ -1765,6 +1765,14 @@ static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
 	handlers = CDR(handlers);
     }
 
+    /* Update intervening frames in case handlers were added higher up. */
+    RCNTXT *fixup = R_GlobalContext;
+    while (fixup != cptr) {
+	if (fixup->handlerstack == oldstack)
+	    fixup->handlerstack = cptr->handlerstack;
+	fixup = fixup->nextcontext;
+    }
+
     if (cptr == R_GlobalContext)
 	R_HandlerStack = cptr->handlerstack;
 
