@@ -1701,15 +1701,45 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP value)
     }
 }
 
-static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
-    /* Update the `handlerstack` restore point of the frame just below `envir`. */
+static SEXP makeHandlerStack(SEXP stack, Rboolean calling)
+{
+    stack = PROTECT(cons(R_NilValue, shallow_duplicate(stack)));
+
+    SEXP prev = stack;
+    SEXP node = CDR(stack);
+    while (node != R_NilValue) {
+	SEXP entry = CAR(node);
+	int entry_calling = ENTRY_TARGET_ENVIR(entry) == R_NilValue;
+
+	if (calling == entry_calling) {
+	    SETCAR(node, ENTRY_HANDLER(entry));
+	    prev = node;
+	    node = CDR(node);
+	} else {
+	    node = CDR(node);
+	    SETCDR(prev, node);
+	}
+    }
+
+    UNPROTECT(1);
+    return CDR(stack);
+}
+
+static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
+{
+    Rboolean calling = target == R_NilValue;
+
+    /* Find the frame just below `envir` so we can update its `handlerstack` field. */
     RCNTXT *cptr = findExecContextChild(R_GlobalContext, envir);
+
     if (!cptr)
 	error(_("can't find environment to register condition handlers"));
     SEXP oldstack = cptr->handlerstack;
 
-    if (handlers == R_NilValue)
-	return oldstack;
+    if (handlers == R_NilValue) {
+	R_Visible = TRUE;
+	return makeHandlerStack(oldstack, calling);
+    }
 
     SEXP result = PROTECT(allocVector(VECSXP, RESULT_SIZE));
     ATTRIB(result) = R_HandlerResultToken;
@@ -1723,6 +1753,7 @@ static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
 
 	SEXP entry = mkHandlerEntry(PRINTNAME(klass), CAR(handlers), target, result);
 	cptr->handlerstack = CONS(entry, cptr->handlerstack);
+	SET_TAG(cptr->handlerstack, klass);
 
 	handlers = CDR(handlers);
     }
@@ -1731,7 +1762,8 @@ static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target) {
 	R_HandlerStack = cptr->handlerstack;
 
     UNPROTECT(1);
-    return oldstack;
+    R_Visible = FALSE;
+    return R_NilValue;
 }
 
 SEXP attribute_hidden do_addCondHandsList(SEXP call, SEXP op, SEXP args, SEXP rho)

@@ -213,3 +213,54 @@ f <- function() {
     localCallingHandlers()
 }
 stopifnot(is.null(f()))
+
+
+## Return current stack when called without arguments
+f <- function() {
+    stopifnot(
+        is.null(localCallingHandlers()),
+        is.null(localCatch())
+    )
+    localCallingHandlers(error = identity, warning = identity)
+    localCatch(condition = identity, message = identity)
+    list(
+        calling = withVisible(localCallingHandlers()),
+        exiting = withVisible(localCatch())
+    )
+}
+stacks <- f()
+stopifnot(
+    isTRUE(stacks$calling$visible),
+    isTRUE(stacks$exiting$visible),
+    identical(stacks$calling$value, pairlist(error = identity, warning = identity)),
+    identical(stacks$exiting$value, pairlist(condition = identity, message = identity))
+)
+
+## Return NULL invisibly when handlers are added
+f <- function() {
+    list(
+        calling = withVisible(localCallingHandlers(condition = identity)),
+        exiting = withVisible(localCatch(condition = identity))
+    )
+}
+stacks <- f()
+stopifnot(
+    isFALSE(stacks$calling$visible),
+    isFALSE(stacks$exiting$visible),
+    is.null(stacks$calling$value),
+    is.null(stacks$exiting$value)
+)
+
+## All active handlers are returned
+f <- function() {
+    localCallingHandlers(foo = identity)
+    g()
+}
+g <- function() {
+    localCallingHandlers(bar = identity)
+    h()
+}
+h <- function() {
+    localCallingHandlers()
+}
+stopifnot(identical(f(), pairlist(bar = identity, foo = identity)))

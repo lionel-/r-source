@@ -179,6 +179,10 @@ allowInterrupts(expr)
    \code{localCallingHandlers} adds the handlers locally. They remain
    active for the duration of the current function.
 
+   When \code{localCatch} and \code{localCallingHandlers} are called
+   without argument, they return the stacks of currently active exiting
+   or calling handlers. This can be useful during debugging.
+
    User interrupts signal a condition of class \code{interrupt} that
    inherits directly from class \code{condition} before executing the
    default interrupt action.

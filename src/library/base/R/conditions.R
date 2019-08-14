@@ -54,7 +54,7 @@ tryCatch <- function(expr, ..., finally) {
     tryCatchList(expr, classes, handlers)
 }
 localCatch <- function(..., .envir = parent.frame()) {
-    invisible(.Internal(.addCondHandsList(.envir, .envir, ...)))
+    .Internal(.addCondHandsList(.envir, .envir, ...))
 }
 
 withCallingHandlers <- function(expr, ...) {
@@ -62,7 +62,7 @@ withCallingHandlers <- function(expr, ...) {
     expr
 }
 localCallingHandlers <- function(..., .envir = parent.frame()) {
-    invisible(.Internal(.addCondHandsList(.envir, NULL, ...)))
+    .Internal(.addCondHandsList(.envir, NULL, ...))
 }
 
 suppressWarnings <- function(expr) {
