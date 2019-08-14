@@ -1732,16 +1732,98 @@ void attribute_hidden printHandlerStack(RCNTXT *cntxt) {
     Rf_PrintValue(makeHandlerStack(cntxt->handlerstack, -1));
 }
 
+static RCNTXT * findContextChild(RCNTXT *cntxt)
+{
+    RCNTXT *prev = R_GlobalContext;
+    RCNTXT *cptr = prev->nextcontext;
+
+    while (cptr != cntxt) {
+	if (!cptr)
+	    return NULL;
+	prev = cptr;
+	cptr = cptr->nextcontext;
+    }
+
+    return prev;
+}
+
+/* Update `handlerstack` references of all intervening contexts up to
+   `cptr` that still point to the old stack. This is necessary when
+   handlers have been added or removed higher up. */
+static void updateHandlerStacks(RCNTXT *cptr, SEXP oldstack)
+{
+    RCNTXT *cntxt = R_GlobalContext;
+    while (cntxt != cptr) {
+	if (cntxt->handlerstack == oldstack)
+	    cntxt->handlerstack = cptr->handlerstack;
+	cntxt = cntxt->nextcontext;
+    }
+}
+
+/* Remove all the global handlers for a given class. */
+static void delGlobalHandlers(RCNTXT *cptr, SEXP klass) {
+    Rboolean flush = klass == install("condition");
+
+    SEXP oldstack = cptr->handlerstack;
+
+    SEXP newstack = PROTECT(cons(R_NilValue, cptr->handlerstack));
+    SEXP prev = newstack;
+    SEXP node = CDR(prev);
+
+    while (node != R_NilValue) {
+	if (flush || TAG(node) == klass) {
+	    node = CDR(node);
+	    SETCDR(prev, node);
+	} else {
+	    prev = node;
+	    node = CDR(node);
+	}
+    }
+    cptr->handlerstack = CDR(newstack);
+    UNPROTECT(1);
+
+    /* If the top of the global portion of the handler stack is gone,
+       we need to (a) rechain the first child of the old top onto the
+       new top of the global stack, and (b) update references to the
+       old top in the child contexts. */
+    if (oldstack != cptr->handlerstack) {
+	SEXP node = R_HandlerStack;
+	while (node != R_NilValue) {
+	    SEXP next = CDR(node);
+	    if (next == oldstack) {
+		SETCDR(node, newstack);
+		break;
+	    }
+	    node = next;
+	}
+
+	updateHandlerStacks(cptr, oldstack);
+    }
+}
+
 static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
 {
     Rboolean calling = target == R_NilValue;
+    Rboolean global = envir == R_GlobalEnv;
 
-    /* Find the frame just below `envir` so we can update its `handlerstack` field. */
-    RCNTXT *cptr = findExecContextChild(R_GlobalContext, envir);
+    /* Find the child of the context in which handlers are added. The
+       new state of the stack will be recorded in its `handlerstack`
+       field. When the child is popped off the stack, the currently
+       active stack in `R_HandlerStack` will be restored to the new
+       state. See also the updating logic below to maintain the stack
+       references in a consistent state when there are intervening
+       frames (when global handlers are added or removed, and when
+       local handlers are added via a promise). */
+    RCNTXT *cptr;
+    if (global)
+	cptr = findContextChild(R_ToplevelContext);
+    else
+	cptr = findExecContextChild(R_GlobalContext, envir);
 
     if (!cptr)
 	error(_("can't find environment to register condition handlers"));
     SEXP oldstack = cptr->handlerstack;
+
 
     if (handlers == R_NilValue) {
 	R_Visible = TRUE;
@@ -1758,21 +1840,26 @@ static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
 	    error(_("condition handlers must be supplied with a class"));
 	}
 
-	SEXP entry = mkHandlerEntry(PRINTNAME(klass), CAR(handlers), target, result);
-	cptr->handlerstack = CONS(entry, cptr->handlerstack);
-	SET_TAG(cptr->handlerstack, klass);
+	SEXP handler = CAR(handlers);
+
+	if (handler == R_NilValue) {
+	    if (!global)
+		error(_("can't remove condition handlers inside functions"));
+	    delGlobalHandlers(cptr, klass);
+	} else {
+	    SEXP entry = mkHandlerEntry(PRINTNAME(klass), handler, target, result);
+	    cptr->handlerstack = cons(entry, cptr->handlerstack);
+	    SET_TAG(cptr->handlerstack, klass);
+	}
 
 	handlers = CDR(handlers);
     }
 
-    /* Update intervening frames in case handlers were added higher up. */
-    RCNTXT *fixup = R_GlobalContext;
-    while (fixup != cptr) {
-	if (fixup->handlerstack == oldstack)
-	    fixup->handlerstack = cptr->handlerstack;
-	fixup = fixup->nextcontext;
-    }
+    /* Update intervening frames in case handlers were added higher up via a promise. */
+    updateHandlerStacks(cptr, oldstack);
 
+    if (global)
+	R_ToplevelContext->handlerstack = cptr->handlerstack;
     if (cptr == R_GlobalContext)
 	R_HandlerStack = cptr->handlerstack;
 
@@ -1787,6 +1874,9 @@ SEXP attribute_hidden do_addCondHandsList(SEXP call, SEXP op, SEXP args, SEXP rh
 
     SEXP envir = CAR(args); args = CDR(args);
     SEXP target = CAR(args); args = CDR(args);
+
+    if (envir == R_GlobalEnv && !PRIMVAL(op))
+	error(_("can't add local handlers in the global environment"));
 
     SEXP handlers = PROTECT(listReverse(args));
     SEXP old = addHandlers(handlers, envir, target);

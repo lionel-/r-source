@@ -64,6 +64,9 @@ withCallingHandlers <- function(expr, ...) {
 localCallingHandlers <- function(..., .envir = parent.frame()) {
     .Internal(.addCondHandsList(.envir, NULL, ...))
 }
+globalCallingHandlers <- function(...) {
+    .Internal(.addGlobalHandsList(globalenv(), NULL, ...))
+}
 
 suppressWarnings <- function(expr) {
     ops <- options(warn = -1) ## FIXME: temporary hack until R_tryEval

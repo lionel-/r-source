@@ -303,3 +303,120 @@ stopifnot(
     identical(stacks$intermediate, pairlist(foo = identity)),
     identical(stacks$target, pairlist(foo = identity))
 )
+
+
+## Supplying NULL removes global handlers
+globalCallingHandlers(foo = NULL)
+stopifnot(is.null(globalCallingHandlers()))
+##
+globalCallingHandlers(foo = identity, bar = identity, foo = identity)
+globalCallingHandlers(foo = NULL)
+stopifnot(identical(globalCallingHandlers(), pairlist(bar = identity)))
+globalCallingHandlers(bar = NULL)
+stopifnot(is.null(globalCallingHandlers()))
+## `condition = NULL` removes all global handlers
+globalCallingHandlers(foo = identity, bar = identity, foo = identity)
+globalCallingHandlers(condition = NULL)
+stopifnot(is.null(globalCallingHandlers()))
+
+
+## Can't remove local calling handlers
+f <- function() {
+    localCallingHandlers(foo = identity)
+    localCallingHandlers(foo = NULL)
+}
+stack <- NULL
+err <- tryCatch(
+    withCallingHandlers(
+        f(),
+        error = function(...) stack  <<- localCallingHandlers()
+    ),
+    error = identity
+)
+stopifnot(grepl("inside functions", err$message))
+
+
+## Removing global handlers preserves local ones
+##
+globalHandler <- function(...) "global"
+localHandler <- function(...) "local"
+f <- function() g()
+##
+## Remove all globals
+globalCallingHandlers(foo = globalHandler, bar = identity)
+g <- function() {
+    localCallingHandlers(foo = localHandler)
+    globalCallingHandlers(condition = NULL)
+    localCallingHandlers()
+}
+stack <- f()
+stopifnot(
+    identical(stack, pairlist(foo = localHandler)),
+    is.null(globalCallingHandlers())
+)
+##
+## Remove global handlers on the top
+globalCallingHandlers(foo = globalHandler, bar = identity)
+g <- function() {
+    localCallingHandlers(foo = localHandler)
+    globalCallingHandlers(foo = NULL)
+    localCallingHandlers()
+}
+stack <- f()
+stopifnot(
+    identical(stack, pairlist(foo = localHandler, bar = identity)),
+    identical(globalCallingHandlers(), pairlist(bar = identity))
+)
+globalCallingHandlers(condition = NULL)
+##
+## Remove global handlers on the bottom
+globalCallingHandlers(bar = identity, foo = globalHandler)
+g <- function() {
+    localCallingHandlers(foo = localHandler)
+    globalCallingHandlers(foo = NULL)
+    localCallingHandlers()
+}
+stack <- f()
+stopifnot(
+    identical(stack, pairlist(foo = localHandler, bar = identity)),
+    identical(globalCallingHandlers(), pairlist(bar = identity))
+)
+globalCallingHandlers(condition = NULL)
+
+## `globalCallingHandlers()` doesn't return local handlers
+globalCallingHandlers(foo = identity)
+f <- function() {
+    localCallingHandlers(bar = identity)
+    list(local = localCallingHandlers(), global = globalCallingHandlers())
+}
+stack <- f()
+stopifnot(
+    identical(stack$local, pairlist(bar = identity, foo = identity)),
+    identical(stack$global, pairlist(foo = identity))
+)
+globalCallingHandlers(condition = NULL)
+
+
+## Can resignal conditions from global handlers
+resignalled <<- NULL
+muffled <<- NULL
+resignal <- function(wrn) {
+    new <- structure(
+        list(message = paste0("Caught: ", conditionMessage(wrn))),
+        class = c("mywarning", "warning", "condition")
+    )
+    resignalled <<- new
+    warning(new)
+    invokeRestart("muffleWarning")
+}
+muffle <- function(wrn) {
+    muffled <<- wrn
+    invokeRestart("muffleWarning")
+}
+globalCallingHandlers(simpleWarning = resignal, warning = muffle)
+warning("foo")
+stopifnot(
+    inherits(resignalled, "mywarning"),
+    identical(resignalled, muffled)
+)
+globalCallingHandlers(condition = NULL)

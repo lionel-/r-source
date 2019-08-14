@@ -179,9 +179,16 @@ allowInterrupts(expr)
    \code{localCallingHandlers} adds the handlers locally. They remain
    active for the duration of the current function.
 
+   \code{globalCallingHandlers} registers global calling handlers. These
+   handlers remain active for the duration of the session or until they
+   are removed. Pass \code{class = NULL} to remove all global handlers
+   for the given condition class.
+
    When \code{localCatch} and \code{localCallingHandlers} are called
    without argument, they return the stacks of currently active exiting
-   or calling handlers. This can be useful during debugging.
+   or calling handlers. This can be useful during debugging. Similarly,
+   \code{globalCallingHandlers} returns the currently active global
+   handlers.
 
    User interrupts signal a condition of class \code{interrupt} that
    inherits directly from class \code{condition} before executing the
