@@ -1701,7 +1701,7 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP value)
     }
 }
 
-static SEXP makeHandlerStack(SEXP stack, Rboolean calling)
+static SEXP makeHandlerStack(SEXP stack, int calling)
 {
     stack = PROTECT(cons(R_NilValue, shallow_duplicate(stack)));
 
@@ -1711,7 +1711,8 @@ static SEXP makeHandlerStack(SEXP stack, Rboolean calling)
 	SEXP entry = CAR(node);
 	int entry_calling = ENTRY_TARGET_ENVIR(entry) == R_NilValue;
 
-	if (calling == entry_calling) {
+	/* Return whole stack if `calling` is negative, for debugging purposes. */
+	if (calling < 0 || calling == entry_calling) {
 	    SETCAR(node, ENTRY_HANDLER(entry));
 	    prev = node;
 	    node = CDR(node);
@@ -1723,6 +1724,12 @@ static SEXP makeHandlerStack(SEXP stack, Rboolean calling)
 
     UNPROTECT(1);
     return CDR(stack);
+}
+
+/* For debugging */
+void attribute_hidden printHandlerStack(RCNTXT *cntxt) {
+    cntxt = cntxt ? cntxt : R_GlobalContext;
+    Rf_PrintValue(makeHandlerStack(cntxt->handlerstack, -1));
 }
 
 static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
