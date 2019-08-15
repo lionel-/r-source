@@ -268,35 +268,42 @@ stopifnot(identical(f(), pairlist(bar = identity, foo = identity)))
 
 ## Handler stacks in intervening contexts are updated
 f <- function() {
-    list(intermediate = g(environment()), target = localCallingHandlers())
+    list(
+        intermediate = g(localCallingHandlers(foo = identity)),
+        target = localCallingHandlers()
+    )
 }
-g <- function(env) {
-    h(env)
+g <- function(expr) {
+    h(expr)
     localCallingHandlers()
 }
-h <- function(env) {
-    localCallingHandlers(foo = identity, .envir = env)
+h <- function(expr) {
+    force(expr)
 }
 stacks <- f()
 stopifnot(
     identical(stacks$intermediate, pairlist(foo = identity)),
     identical(stacks$target, pairlist(foo = identity))
 )
+
 ## Stack has changed on the way
 f <- function() {
-    list(intermediate = g(environment()), target = localCallingHandlers())
+    list(
+        intermediate = g(localCallingHandlers(foo = identity)),
+        target = localCallingHandlers()
+    )
 }
-g <- function(env) {
-    h(env)
+g <- function(expr) {
+    h(expr)
     localCallingHandlers()
 }
-h <- function(env) {
+h <- function(expr) {
     # Change stack on the way
     localCallingHandlers(baz = identity)
-    i(env)
+    i(expr)
 }
-i <- function(env) {
-    localCallingHandlers(foo = identity, .envir = env)
+i <- function(expr) {
+    force(expr)
 }
 stacks <- f()
 stopifnot(

@@ -40,7 +40,7 @@ tryCatch <- function(expr, ..., finally) {
             # If an exit handler is invoked, `doTryCatch()` returns
             # with the value of its invokation. Otherwise, it returns
             # with the value of `expr`.
-	    .Internal(.addCondHand(environment(), environment(), as.name(name), handler))
+	    .Internal(.addCondHand(environment(), FALSE, as.name(name), handler))
 	    expr
 	}
 	doTryCatch(expr, name, handler)
@@ -53,19 +53,19 @@ tryCatch <- function(expr, ..., finally) {
         stop("bad handler specification")
     tryCatchList(expr, classes, handlers)
 }
-localCatch <- function(..., .envir = parent.frame()) {
-    .Internal(.addCondHandsList(.envir, .envir, ...))
+localCatch <- function(...) {
+    .Internal(.addCondHandsList(parent.frame(), FALSE, ...))
 }
 
 withCallingHandlers <- function(expr, ...) {
     localCallingHandlers(...)
     expr
 }
-localCallingHandlers <- function(..., .envir = parent.frame()) {
-    .Internal(.addCondHandsList(.envir, NULL, ...))
+localCallingHandlers <- function(...) {
+    .Internal(.addCondHandsList(parent.frame(), TRUE, ...))
 }
 globalCallingHandlers <- function(...) {
-    .Internal(.addGlobalHandsList(globalenv(), NULL, ...))
+    .Internal(.addGlobalHandsList(globalenv(), TRUE, ...))
 }
 
 suppressWarnings <- function(expr) {

@@ -107,9 +107,6 @@ allowInterrupts(expr)
   \item{x}{object.}
   \item{class}{character string naming a condition class.}
   \item{\dots}{additional arguments; see details below.}
-  \item{.envir}{the environment of a running function in which to add
-    condition handlers. The default (the current frame) should rarely be
-    overidden.}
 }
 
 \details{

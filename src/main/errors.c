@@ -1801,9 +1801,8 @@ static void delGlobalHandlers(RCNTXT *cptr, SEXP klass) {
     }
 }
 
-static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
+static SEXP addHandlers(SEXP handlers, SEXP envir, Rboolean calling)
 {
-    Rboolean calling = target == R_NilValue;
     Rboolean global = envir == R_GlobalEnv;
 
     /* Find the child of the context in which handlers are added. The
@@ -1830,6 +1829,7 @@ static SEXP addHandlers(SEXP handlers, SEXP envir, SEXP target)
 	return makeHandlerStack(oldstack, calling);
     }
 
+    SEXP target = calling ? R_NilValue : envir;
     SEXP result = PROTECT(allocVector(VECSXP, RESULT_SIZE));
     ATTRIB(result) = R_HandlerResultToken;
 
@@ -1873,13 +1873,13 @@ SEXP attribute_hidden do_addCondHandsList(SEXP call, SEXP op, SEXP args, SEXP rh
     checkArity(op, args);
 
     SEXP envir = CAR(args); args = CDR(args);
-    SEXP target = CAR(args); args = CDR(args);
+    SEXP calling = CAR(args); args = CDR(args);
 
     if (envir == R_GlobalEnv && !PRIMVAL(op))
 	error(_("can't add local handlers in the global environment"));
 
     SEXP handlers = PROTECT(listReverse(args));
-    SEXP old = addHandlers(handlers, envir, target);
+    SEXP old = addHandlers(handlers, envir, LOGICAL(calling)[0]);
 
     UNPROTECT(1);
     return old;
@@ -1889,13 +1889,13 @@ SEXP attribute_hidden do_addCondHand(SEXP call, SEXP op, SEXP args, SEXP rho)
     checkArity(op, args);
 
     SEXP envir = CAR(args); args = CDR(args);
-    SEXP target = CAR(args); args = CDR(args);
+    SEXP calling = CAR(args); args = CDR(args);
     SEXP klass = CAR(args); args = CDR(args);
     SEXP handler = CAR(args);
 
     SEXP handlers = PROTECT(list1(handler));
     TAG(handlers) = klass;
-    SEXP old = addHandlers(handlers, envir, target);
+    SEXP old = addHandlers(handlers, envir, LOGICAL(calling)[0]);
 
     UNPROTECT(1);
     return old;
