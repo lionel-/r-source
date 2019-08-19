@@ -1484,7 +1484,7 @@ function(package)
         if(sum(.call_names(calls) == "loadNamespace") == 1L)
             signalCondition(e)
         else
-            invokeRestart("muffleWarning")
+            maybeInvokeRestart("muffleWarning")
     }
     expr <- substitute(loadNamespace(package), list(package = package))
     invisible(withCallingHandlers(suppressMessages(eval(expr)),

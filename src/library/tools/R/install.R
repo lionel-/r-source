@@ -2851,7 +2851,7 @@ if(FALSE) {
     .whandler <-  function(e) {
         .messages <<- c(.messages,
                         paste("Rd warning:", conditionMessage(e)))
-        invokeRestart("muffleWarning")
+        maybeInvokeRestart("muffleWarning")
     }
     .ehandler <- function(e) {
         message("", domain = NA) # force newline
