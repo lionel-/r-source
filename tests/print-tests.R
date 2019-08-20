@@ -312,7 +312,8 @@ local({
 
 
 ## User-supplied arguments are forwarded on print-dispatch
-print.foo <- function(x, other = FALSE, digits = 0L, ..., indexTag = "") {
+print.foo <- function(x, other = FALSE, digits = 0L, ...,
+		      indexTag = "", useCustom = NULL) {
     cat("digits: ", digits, "\n")
     stopifnot(other, digits == 4, !...length())
 }

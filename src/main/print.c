@@ -75,6 +75,7 @@ R_PrintData R_print;
 
 static void printAttributes(SEXP, R_PrintData *, Rboolean);
 static void PrintDispatch(SEXP, R_PrintData *);
+static void PrintObjectMasked(SEXP, SEXP, R_PrintData *);
 
 
 #define TAGBUFLEN 256
@@ -101,6 +102,7 @@ void PrintInit(R_PrintData *data, SEXP env)
     data->cutoff = GetOptionCutoff();
     data->env = env;
     data->callArgs = R_NilValue;
+    data->useCustom = FALSE;
 }
 
 /* Used in X11 module for dataentry */
@@ -193,6 +195,52 @@ static void PrintClosure(SEXP s, R_PrintData *data)
     if (t != R_GlobalEnv)
 	Rprintf("%s\n", EncodeEnvironment(t));
 }
+
+
+/* Custom printing. */
+
+static Rboolean customPrintOngoing = FALSE;
+
+static Rboolean canPrintCustom(R_PrintData *data)
+{
+    SEXP custom = GetOption1(install("print.custom"));
+
+    return
+	data->useCustom &&
+	isFunction(custom) &&
+	!customPrintOngoing;
+}
+
+struct PrintCustomData {
+    SEXP s;
+    R_PrintData *data;
+};
+static SEXP PrintCustomImpl(void *implData)
+{
+    customPrintOngoing = TRUE;
+
+    struct PrintCustomData *customData = (struct PrintCustomData *) implData;
+    SEXP custom = GetOption1(install("print.custom"));
+
+    PrintObjectMasked(customData->s, custom, customData->data);
+
+    return R_NilValue;
+}
+static void PrintCustomCleanup(void *data)
+{
+    customPrintOngoing = FALSE;
+}
+
+static void PrintCustom(SEXP s, R_PrintData *data)
+{
+    struct PrintCustomData implData;
+    implData.s = s;
+    implData.data = data;
+
+    R_ExecWithCleanup(&PrintCustomImpl, (void *) &implData,
+		      &PrintCustomCleanup, NULL);
+}
+
 
 /* This advances `args` and `prev`. If an argument should not be
    forwarded because it was not explicitly supplied by the user,
@@ -300,6 +348,9 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     if(data.useSource) data.useSource = USESOURCE;
     advancePrintArgs(&args, &prev, &missingArg, &allMissing);
 
+    data.useCustom = asLogical(CAR(args));
+    advancePrintArgs(&args, &prev, &missingArg, &allMissing);
+
     /* The next arguments are those forwarded in `...`. If all named
        arguments were missing and there are no arguments in `...`, the
        user has not supplied any parameter and we can use show() on S4
@@ -311,7 +362,9 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     /* Initialise the global R_init as other routines still depend on it */
     R_print = data;
 
-    if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
+    if (canPrintCustom(&data))
+	PrintCustom(x, &data);
+    else if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
 	PrintDispatch(x, &data);
     else
 	PrintValueRec(x, &data);
@@ -354,7 +407,7 @@ static void PrintObjectS4(SEXP s, R_PrintData *data)
     UNPROTECT(2);
 }
 
-static void PrintObjectS3(SEXP s, R_PrintData *data)
+static void PrintObjectMasked(SEXP s, SEXP fun, R_PrintData *data)
 {
     /*
       Bind value to a variable in a local environment, similar to
@@ -370,7 +423,6 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     defineVar(xsym, s, mask);
 
     /* Forward user-supplied arguments to print() */
-    SEXP fun = PROTECT(findFun(install("print"), R_BaseNamespace));
     SEXP args = PROTECT(cons(xsym, data->callArgs));
 
     /* Pass the current tag buffer as argument in case we recurse back
@@ -384,7 +436,14 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     eval(call, mask);
 
     defineVar(xsym, R_NilValue, mask); /* To eliminate reference to s */
-    UNPROTECT(5); /* mask, fun, args, call */
+    UNPROTECT(4); /* mask, fun, args, call */
+}
+
+static void PrintObjectS3(SEXP s, R_PrintData *data)
+{
+    SEXP fun = PROTECT(findFun(install("print"), R_BaseNamespace));
+    PrintObjectMasked(s, fun, data);
+    UNPROTECT(1);
 }
 
 /* Call `print()` only if a method is actually defined. Otherwise the
@@ -407,7 +466,9 @@ static void PrintDispatch(SEXP s, R_PrintData *data)
        because calling into base::print() resets the buffer */
     SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
 
-    if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
+    if (canPrintCustom(data))
+	PrintCustom(s, data);
+    else if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
 	PrintObjectS4(s, data);
     else if (OBJECT(s) || hasPrintDefined(s))
 	PrintObjectS3(s, data);
@@ -1051,6 +1112,8 @@ void attribute_hidden PrintValueEnv(SEXP s, SEXP env)
 
     R_PrintData data;
     PrintInit(&data, env);
+    data.useCustom = TRUE;
+
     PrintDispatch(s, &data);
 
     UNPROTECT(1);

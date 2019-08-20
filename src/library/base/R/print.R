@@ -21,8 +21,11 @@ print <- function(x, ...) UseMethod("print")
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
 print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
                           print.gap = NULL, right = FALSE, max = NULL,
-			  useSource = TRUE, ..., indexTag = "")
+			  useSource = TRUE, ..., indexTag = "", useCustom = NULL)
 {
+    if (is.null(useCustom))
+	useCustom <- identical(topenv(parent.frame()), globalenv())
+
     # Arguments are wrapped in another pairlist because we need to
     # forward them to recursive print() calls.
     args <- pairlist(
@@ -33,7 +36,8 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
 	right = right,
 	max = max,
 	useSource = useSource,
-        ...
+	useCustom = useCustom,
+	...
     )
 
     # Missing elements are not forwarded so we pass their
@@ -41,9 +45,15 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
     # with S4 objects (if any argument print() is used instead).
     missings <- c(missing(digits), missing(quote), missing(na.print),
 		  missing(print.gap), missing(right), missing(max),
-		  missing(useSource))
+		  missing(useSource), FALSE)
 
-    stopifnot(is.character(indexTag), length(indexTag) == 1, !is.na(indexTag))
+    isString <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
+    isBool <- function(x) is.logical(x) && length(x) == 1 && !is.na(x)
+
+    stopifnot(
+	isString(indexTag),
+	isBool(useCustom)
+    )
 
     .Internal(print.default(x, indexTag, args, missings))
 }
