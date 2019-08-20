@@ -26,7 +26,8 @@ toLatex(object, \dots)
     \code{"Latex"}.}
   \item{prefix}{a character string which is printed at the beginning of
     each line, mostly used to insert whitespace for indentation.}
-  \item{\dots}{in the print methods, passed to \code{\link{writeLines}}.}
+  \item{con,sep,useBytes}{passed to \code{\link{writeLines}}.}
+  \item{\dots}{unused.}
 }
 \details{
   Objects of class \code{"Bibtex"} or \code{"Latex"} are simply
