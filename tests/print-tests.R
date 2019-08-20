@@ -341,3 +341,35 @@ options(o)
 
 ## Cleanup
 rm(print.foo, obj, a, b, c, d, o)
+
+## Print and auto-print are consistent when user has defined S3
+## methods in the global environment
+print.data.frame <- function(x, ...) {
+    cat("dispatched to print.data.frame\n")
+    base::print.data.frame(x, ...)
+}
+x <- data.frame(x = 1:3)
+x
+print(x)
+list(x, list(x))
+print(list(x, list(x)))
+##
+print.function <- function(x, ...) {
+    cat("dispatched to print.function\n")
+    NextMethod()
+}
+x <- identity
+x
+print(x)
+list(x, list(x))
+print(list(x, list(x)))
+##
+print.list <- function(x, ...) {
+    cat("dispatched to print.list\n")
+    NextMethod()
+}
+list(1)
+print(list(1))
+list(1, list(1))
+print(list(1, list(1)))
+rm(print.data.frame, print.function, print.list, x)

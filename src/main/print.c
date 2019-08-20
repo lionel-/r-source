@@ -20,15 +20,15 @@
  *
  *  print.default()  ->	 do_printdefault (with call tree below)
  *
- *  auto-printing   ->  PrintValueEnv
- *                      -> PrintValueRec
- *                      -> call print() for objects
- *  Note that auto-printing does not call print.default.
+ *  auto-printing    -> PrintValueEnv
+ *                   	 -> PrintDispatch
+ *
  *  PrintValue, R_PV are similar to auto-printing.
  *
- *  do_printdefault
- *	    -> PrintObject (if S4 dispatch needed)
- *	    -> PrintValueRec
+ *  PrintDispatch
+ *	-> PrintObjectS3 (if OBJECT is set or if method is defined)
+ *	-> PrintObjectS4
+ *	-> PrintValueRec
  *		-> PrintGenericVector	-> PrintDispatch & PrintValueRec
  *		-> printList		-> PrintDispatch & PrintValueRec
  *		-> printAttributes	-> PrintValueRec  (recursion)
@@ -40,9 +40,10 @@
  *		-> printMatrix		>>>>> ./printarray.c
  *		-> printArray		>>>>> ./printarray.c
  *
- * PrintDispatch
- *	-> PrintObject
- *      -> PrintValueRec
+ *
+ *  do_printdefault
+ *	    -> PrintDispatch (if S4 dispatch to show() is needed)
+ *	    -> PrintValueRec (to avoid recursing into print() again)
  *
  *  do_prmatrix
  *	-> PrintDefaults
@@ -73,7 +74,7 @@
 R_PrintData R_print;
 
 static void printAttributes(SEXP, R_PrintData *, Rboolean);
-static void PrintObject(SEXP, R_PrintData *);
+static void PrintDispatch(SEXP, R_PrintData *);
 
 
 #define TAGBUFLEN 256
@@ -299,7 +300,7 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     tagbuf[0] = '\0';
     if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
-	PrintObject(x, &data);
+	PrintDispatch(x, &data);
     else
 	PrintValueRec(x, &data);
 
@@ -311,7 +312,7 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 /*
   NOTE: The S3/S4 versions do not save and restore state like
-	PrintObject() does.
+	PrintDispatch() does.
 */
 static void PrintObjectS4(SEXP s, R_PrintData *data)
 {
@@ -347,9 +348,12 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
       a local({ x <- <value>; print(x) }) call. This avoids
       problems in previous approaches with value duplication and
       evaluating the value, which might be a call object.
+
+      We evaluate in a child of the global environment to ensure
+      dispatch to user-defined print methods.
     */
     SEXP xsym = install("x");
-    SEXP mask = PROTECT(NewEnvironment(R_NilValue, R_NilValue, data->env));
+    SEXP mask = PROTECT(NewEnvironment(R_NilValue, R_NilValue, R_GlobalEnv));
     defineVar(xsym, s, mask);
 
     /* Forward user-supplied arguments to print() */
@@ -363,7 +367,21 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     UNPROTECT(4); /* mask, fun, args, call */
 }
 
-static void PrintObject(SEXP s, R_PrintData *data)
+/* Call `print()` only if a method is actually defined. Otherwise the
+   `tagbuf` is reset and recursive data structures are not printed
+   properly. */
+static Rboolean hasPrintDefined(SEXP s)
+{
+    /* Get old S mode for S3 dispatch of bare objects */
+    SEXP klass = PROTECT(R_data_class2(s));
+    SEXP signature = installS3Signature("print", CHAR(STRING_ELT(klass, 0)));
+    UNPROTECT(1);
+
+    SEXP method = R_LookupMethod(signature, R_GlobalEnv, R_GlobalEnv, R_BaseEnv);
+    return isFunction(method);
+}
+
+static void PrintDispatch(SEXP s, R_PrintData *data)
 {
     /* Save the tagbuffer to restore indexing tags after evaluation
        because calling into base::print() resets the buffer */
@@ -372,18 +390,13 @@ static void PrintObject(SEXP s, R_PrintData *data)
 
     if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
 	PrintObjectS4(s, data);
-    else
+    else if (OBJECT(s) || hasPrintDefined(s))
 	PrintObjectS3(s, data);
+    else
+	PrintValueRec(s, data);
 
     R_print = *data;
     strcpy(tagbuf, save);
-}
-
-static void PrintDispatch(SEXP s, R_PrintData *data) {
-    if (isObject(s))
-	PrintObject(s, data);
-    else
-	PrintValueRec(s, data);
 }
 
 static void PrintGenericVector(SEXP s, R_PrintData *data)
@@ -1017,12 +1030,7 @@ void attribute_hidden PrintValueEnv(SEXP s, SEXP env)
 
     R_PrintData data;
     PrintInit(&data, env);
-    if (isFunction(s))
-	/* printed via print() -> print.function() in order to allow user-defined
-	   print.function() methods to also work in auto-printing: */
-        PrintObject(s, &data);
-    else
-        PrintDispatch(s, &data);
+    PrintDispatch(s, &data);
 
     UNPROTECT(1);
 }
