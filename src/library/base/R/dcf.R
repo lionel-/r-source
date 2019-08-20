@@ -148,7 +148,7 @@ write.dcf <-
 function(x, file = "", append = FALSE, useBytes = FALSE,
          indent = 0.1 * getOption("width"),
          width = 0.9 * getOption("width"),
-         keep.white = NULL)
+         keep.white = NULL, ...)
 {
     if(file == "")
         file <- stdout()

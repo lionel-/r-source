@@ -17,7 +17,7 @@ read.dcf(file, fields = NULL, all = FALSE, keep.white = NULL)
 write.dcf(x, file = "", append = FALSE, useBytes = FALSE,
           indent = 0.1 * getOption("width"),
           width = 0.9 * getOption("width"),
-          keep.white = NULL)
+          keep.white = NULL, \dots)
 }
 \arguments{
   \item{file}{either a character string naming a file or a \link{connection}.
@@ -46,6 +46,8 @@ write.dcf(x, file = "", append = FALSE, useBytes = FALSE,
     continuation lines in output entries.}
   \item{width}{a positive integer giving the target column for wrapping
     lines in the output.}
+  \item{\dots}{Unused. These dots are meant to sink unmatched arguments
+    forwarded from \code{print()}.}
 }
 \details{
   DCF is a simple format for storing databases in plain text files that

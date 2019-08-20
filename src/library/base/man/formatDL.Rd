@@ -11,7 +11,7 @@
 }
 \usage{
 formatDL(x, y, style = c("table", "list"),
-         width = 0.9 * getOption("width"), indent = NULL)
+         width = 0.9 * getOption("width"), indent = NULL, \dots)
 }
 \arguments{
   \item{x}{a vector giving the items to be described, or a list of
@@ -32,7 +32,9 @@ formatDL(x, y, style = c("table", "list"),
     second column in table style, and the indentation of continuation
     lines in list style.  Must not be greater than \code{width/2}, and
     defaults to \code{width/3} for table style and \code{width/9} for
-    list style.}
+  list style.}
+  \item{\dots}{Unused. These dots are meant to sink unmatched arguments
+    forwarded from \code{print()}.}
 }
 \value{
   a character vector with the formatted entries.

@@ -597,7 +597,7 @@ attr(,"class")
 list()
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 > d
 [[1]]
@@ -620,7 +620,7 @@ attr(,"class")
 
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 
 
@@ -644,7 +644,7 @@ attr(,"class")
 list()
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 > print(d)
 [[1]]
@@ -667,7 +667,7 @@ attr(,"class")
 
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 
 
@@ -825,7 +825,7 @@ dispatched
 > 
 > 
 > ## User-supplied arguments are forwarded on print-dispatch
-> print.foo <- function(x, other = FALSE, digits = 0L, ...) {
+> print.foo <- function(x, other = FALSE, digits = 0L, ..., indexTag = "") {
 +     cat("digits: ", digits, "\n")
 +     stopifnot(other, digits == 4, !...length())
 + }
@@ -1069,7 +1069,7 @@ dispatched to print.list
 
 [[2]]
 dispatched to print.list
-[[1]]
+[[2]][[1]]
 [1] 1
 
 
@@ -1080,7 +1080,7 @@ dispatched to print.list
 
 [[2]]
 dispatched to print.list
-[[1]]
+[[2]][[1]]
 [1] 1
 
 

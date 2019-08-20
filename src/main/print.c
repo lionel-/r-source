@@ -213,6 +213,12 @@ static void advancePrintArgs(SEXP* args, SEXP* prev,
     ++(*missingArg);
 }
 
+static void checkTagBufferOverflow(const char *buf)
+{
+    if (strlen(buf) > TAGBUFLEN0)
+	error(_("print buffer overflow"));
+}
+
 /* .Internal(print.default(x, args, missings)) */
 SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
@@ -222,6 +228,13 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     R_PrintData data;
     PrintInit(&data, rho);
+
+    /* Index tag is type-checked at R level */
+    SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
+    SEXP newtagbuf = STRING_ELT(CAR(args), 0); args = CDR(args);
+
+    checkTagBufferOverflow(CHAR(newtagbuf));
+    strcpy(tagbuf, CHAR(newtagbuf));
 
     /* These indicate whether an argument should be forwarded */
     int* missingArg = LOGICAL(CADR(args));
@@ -298,15 +311,15 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     /* Initialise the global R_init as other routines still depend on it */
     R_print = data;
 
-    tagbuf[0] = '\0';
     if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
 	PrintDispatch(x, &data);
     else
 	PrintValueRec(x, &data);
 
     PrintDefaults(); /* reset, as na.print etc may have been set */
+    strcpy(tagbuf, CHAR(oldtagbuf));
 
-    UNPROTECT(1);
+    UNPROTECT(2);
     return x;
 }/* do_printdefault */
 
@@ -359,12 +372,19 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     /* Forward user-supplied arguments to print() */
     SEXP fun = PROTECT(findFun(install("print"), R_BaseNamespace));
     SEXP args = PROTECT(cons(xsym, data->callArgs));
-    SEXP call = PROTECT(lcons(fun, args));
 
+    /* Pass the current tag buffer as argument in case we recurse back
+       here through `print.default() . Argument matching ensures
+       `args` can't contain `index` so it is safe to add the tagbuf as
+       `index` argument. */
+    args = PROTECT(cons(mkString(tagbuf), args));
+    SET_TAG(args, install("indexTag"));
+
+    SEXP call = PROTECT(lcons(fun, args));
     eval(call, mask);
 
     defineVar(xsym, R_NilValue, mask); /* To eliminate reference to s */
-    UNPROTECT(4); /* mask, fun, args, call */
+    UNPROTECT(5); /* mask, fun, args, call */
 }
 
 /* Call `print()` only if a method is actually defined. Otherwise the
@@ -385,8 +405,7 @@ static void PrintDispatch(SEXP s, R_PrintData *data)
 {
     /* Save the tagbuffer to restore indexing tags after evaluation
        because calling into base::print() resets the buffer */
-    char save[TAGBUFLEN0];
-    strcpy(save, tagbuf);
+    SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
 
     if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
 	PrintObjectS4(s, data);
@@ -395,8 +414,11 @@ static void PrintDispatch(SEXP s, R_PrintData *data)
     else
 	PrintValueRec(s, data);
 
+    /* Restore parameters as we might have recursed into `print()` */
     R_print = *data;
-    strcpy(tagbuf, save);
+    strcpy(tagbuf, CHAR(oldtagbuf));
+
+    UNPROTECT(1);
 }
 
 static void PrintGenericVector(SEXP s, R_PrintData *data)
@@ -963,8 +985,7 @@ static void printAttributes(SEXP s, R_PrintData *data, Rboolean useSlots)
     a = ATTRIB(s);
     if (a != R_NilValue) {
 	/* guard against cycles through attributes on environments */
-	if (strlen(tagbuf) > TAGBUFLEN0)
-	    error(_("print buffer overflow"));
+	checkTagBufferOverflow(tagbuf);
 	strcpy(save, tagbuf);
 	/* remove the tag if it looks like a list not an attribute */
 	if (strlen(tagbuf) > 0 &&

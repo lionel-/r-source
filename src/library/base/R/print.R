@@ -21,7 +21,7 @@ print <- function(x, ...) UseMethod("print")
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
 print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
                           print.gap = NULL, right = FALSE, max = NULL,
-                          useSource = TRUE, ...)
+			  useSource = TRUE, ..., indexTag = "")
 {
     # Arguments are wrapped in another pairlist because we need to
     # forward them to recursive print() calls.
@@ -43,7 +43,9 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
 		  missing(print.gap), missing(right), missing(max),
 		  missing(useSource))
 
-    .Internal(print.default(x, args, missings))
+    stopifnot(is.character(indexTag), length(indexTag) == 1, !is.na(indexTag))
+
+    .Internal(print.default(x, indexTag, args, missings))
 }
 
 prmatrix <-

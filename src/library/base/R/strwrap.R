@@ -157,7 +157,7 @@ function(x, width = 0.9 * getOption("width"), indent = 0, exdent = 0,
 
 formatDL <-
 function(x, y, style = c("table", "list"),
-         width = 0.9 * getOption("width"), indent = NULL)
+         width = 0.9 * getOption("width"), indent = NULL, ...)
 {
     if(is.list(x)) {
         if(length(x) == 2L && diff(lengths(x)) == 0L) {

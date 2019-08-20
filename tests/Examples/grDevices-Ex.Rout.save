@@ -2829,477 +2829,477 @@ pdf
 > 
 > postscriptFonts()
 $serif
-$family
+$serif$family
 [1] "Times"
 
-$metrics
+$serif$metrics
 [1] "Times-Roman.afm"      "Times-Bold.afm"       "Times-Italic.afm"    
 [4] "Times-BoldItalic.afm" "Symbol.afm"          
 
-$encoding
+$serif$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $sans
-$family
+$sans$family
 [1] "Helvetica"
 
-$metrics
+$sans$metrics
 [1] "Helvetica.afm"             "Helvetica-Bold.afm"       
 [3] "Helvetica-Oblique.afm"     "Helvetica-BoldOblique.afm"
 [5] "Symbol.afm"               
 
-$encoding
+$sans$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $mono
-$family
+$mono$family
 [1] "Courier"
 
-$metrics
+$mono$metrics
 [1] "Courier.afm"             "Courier-Bold.afm"       
 [3] "Courier-Oblique.afm"     "Courier-BoldOblique.afm"
 [5] "Symbol.afm"             
 
-$encoding
+$mono$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $AvantGarde
-$family
+$AvantGarde$family
 [1] "AvantGarde"
 
-$metrics
+$AvantGarde$metrics
 [1] "agw_____.afm" "agd_____.afm" "agwo____.afm" "agdo____.afm" "Symbol.afm"  
 
-$encoding
+$AvantGarde$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $Bookman
-$family
+$Bookman$family
 [1] "Bookman"
 
-$metrics
+$Bookman$metrics
 [1] "bkl_____.afm" "bkd_____.afm" "bkli____.afm" "bkdi____.afm" "Symbol.afm"  
 
-$encoding
+$Bookman$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $Courier
-$family
+$Courier$family
 [1] "Courier"
 
-$metrics
+$Courier$metrics
 [1] "Courier.afm"             "Courier-Bold.afm"       
 [3] "Courier-Oblique.afm"     "Courier-BoldOblique.afm"
 [5] "Symbol.afm"             
 
-$encoding
+$Courier$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $Helvetica
-$family
+$Helvetica$family
 [1] "Helvetica"
 
-$metrics
+$Helvetica$metrics
 [1] "Helvetica.afm"             "Helvetica-Bold.afm"       
 [3] "Helvetica-Oblique.afm"     "Helvetica-BoldOblique.afm"
 [5] "Symbol.afm"               
 
-$encoding
+$Helvetica$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $`Helvetica-Narrow`
-$family
+$`Helvetica-Narrow`$family
 [1] "Helvetica-Narrow"
 
-$metrics
+$`Helvetica-Narrow`$metrics
 [1] "hvn_____.afm" "hvnb____.afm" "hvno____.afm" "hvnbo___.afm" "Symbol.afm"  
 
-$encoding
+$`Helvetica-Narrow`$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $NewCenturySchoolbook
-$family
+$NewCenturySchoolbook$family
 [1] "NewCenturySchoolbook"
 
-$metrics
+$NewCenturySchoolbook$metrics
 [1] "ncr_____.afm" "ncb_____.afm" "nci_____.afm" "ncbi____.afm" "Symbol.afm"  
 
-$encoding
+$NewCenturySchoolbook$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $Palatino
-$family
+$Palatino$family
 [1] "Palatino"
 
-$metrics
+$Palatino$metrics
 [1] "por_____.afm" "pob_____.afm" "poi_____.afm" "pobi____.afm" "Symbol.afm"  
 
-$encoding
+$Palatino$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $Times
-$family
+$Times$family
 [1] "Times"
 
-$metrics
+$Times$metrics
 [1] "Times-Roman.afm"      "Times-Bold.afm"       "Times-Italic.afm"    
 [4] "Times-BoldItalic.afm" "Symbol.afm"          
 
-$encoding
+$Times$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $URWGothic
-$family
+$URWGothic$family
 [1] "URWGothic"
 
-$metrics
+$URWGothic$metrics
 [1] "a010013l.afm" "a010015l.afm" "a010033l.afm" "a010035l.afm" "s050000l.afm"
 
-$encoding
+$URWGothic$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $URWBookman
-$family
+$URWBookman$family
 [1] "URWBookman"
 
-$metrics
+$URWBookman$metrics
 [1] "b018012l.afm" "b018015l.afm" "b018032l.afm" "b018035l.afm" "s050000l.afm"
 
-$encoding
+$URWBookman$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $NimbusMon
-$family
+$NimbusMon$family
 [1] "NimbusMon"
 
-$metrics
+$NimbusMon$metrics
 [1] "n022003l.afm" "n022004l.afm" "n022023l.afm" "n022024l.afm" "s050000l.afm"
 
-$encoding
+$NimbusMon$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $NimbusSan
-$family
+$NimbusSan$family
 [1] "NimbusSan"
 
-$metrics
+$NimbusSan$metrics
 [1] "n019003l.afm" "n019004l.afm" "n019023l.afm" "n019024l.afm" "s050000l.afm"
 
-$encoding
+$NimbusSan$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $URWHelvetica
-$family
+$URWHelvetica$family
 [1] "URWHelvetica"
 
-$metrics
+$URWHelvetica$metrics
 [1] "n019003l.afm" "n019004l.afm" "n019023l.afm" "n019024l.afm" "s050000l.afm"
 
-$encoding
+$URWHelvetica$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $NimbusSanCond
-$family
+$NimbusSanCond$family
 [1] "NimbusSanCond"
 
-$metrics
+$NimbusSanCond$metrics
 [1] "n019043l.afm" "n019044l.afm" "n019063l.afm" "n019064l.afm" "s050000l.afm"
 
-$encoding
+$NimbusSanCond$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $CenturySch
-$family
+$CenturySch$family
 [1] "CenturySch"
 
-$metrics
+$CenturySch$metrics
 [1] "c059013l.afm" "c059016l.afm" "c059033l.afm" "c059036l.afm" "s050000l.afm"
 
-$encoding
+$CenturySch$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $URWPalladio
-$family
+$URWPalladio$family
 [1] "URWPalladio"
 
-$metrics
+$URWPalladio$metrics
 [1] "p052003l.afm" "p052004l.afm" "p052023l.afm" "p052024l.afm" "s050000l.afm"
 
-$encoding
+$URWPalladio$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $NimbusRom
-$family
+$NimbusRom$family
 [1] "NimbusRom"
 
-$metrics
+$NimbusRom$metrics
 [1] "n021003l.afm" "n021004l.afm" "n021023l.afm" "n021024l.afm" "s050000l.afm"
 
-$encoding
+$NimbusRom$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $URWTimes
-$family
+$URWTimes$family
 [1] "URWTimes"
 
-$metrics
+$URWTimes$metrics
 [1] "n021003l.afm" "n021004l.afm" "n021023l.afm" "n021024l.afm" "s050000l.afm"
 
-$encoding
+$URWTimes$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $ArialMT
-$family
+$ArialMT$family
 [1] "ArialMT"
 
-$metrics
+$ArialMT$metrics
 [1] "ArialMT.afm"            "ArialMT-Bold.afm"       "ArialMT-Italic.afm"    
 [4] "ArialMT-BoldItalic.afm" "Symbol.afm"            
 
-$encoding
+$ArialMT$encoding
 [1] "default"
 
 attr(,"class")
 [1] "Type1Font"
 
 $ComputerModern
-$family
+$ComputerModern$family
 [1] "ComputerModern"
 
-$metrics
+$ComputerModern$metrics
 [1] "CM_regular_10.afm"      "CM_boldx_10.afm"        "CM_italic_10.afm"      
 [4] "CM_boldx_italic_10.afm" "CM_symbol_10.afm"      
 
-$encoding
+$ComputerModern$encoding
 [1] "TeXtext.enc"
 
 attr(,"class")
 [1] "Type1Font"
 
 $ComputerModernItalic
-$family
+$ComputerModernItalic$family
 [1] "ComputerModernItalic"
 
-$metrics
+$ComputerModernItalic$metrics
 [1] "CM_regular_10.afm" "CM_boldx_10.afm"   "cmti10.afm"       
 [4] "cmbxti10.afm"      "CM_symbol_10.afm" 
 
-$encoding
+$ComputerModernItalic$encoding
 [1] "TeXtext.enc"
 
 attr(,"class")
 [1] "Type1Font"
 
 $Japan1
-$family
+$Japan1$family
 [1] "HeiseiKakuGo-W5"
 
-$metrics
+$Japan1$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$Japan1$cmap
 [1] "EUC-H"
 
-$cmapEncoding
+$Japan1$cmapEncoding
 [1] "EUC-JP"
 
-$pdfresource
+$Japan1$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $Japan1HeiMin
-$family
+$Japan1HeiMin$family
 [1] "HeiseiMin-W3"
 
-$metrics
+$Japan1HeiMin$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$Japan1HeiMin$cmap
 [1] "EUC-H"
 
-$cmapEncoding
+$Japan1HeiMin$cmapEncoding
 [1] "EUC-JP"
 
-$pdfresource
+$Japan1HeiMin$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $Japan1GothicBBB
-$family
+$Japan1GothicBBB$family
 [1] "GothicBBB-Medium"
 
-$metrics
+$Japan1GothicBBB$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$Japan1GothicBBB$cmap
 [1] "EUC-H"
 
-$cmapEncoding
+$Japan1GothicBBB$cmapEncoding
 [1] "EUC-JP"
 
-$pdfresource
+$Japan1GothicBBB$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $Japan1Ryumin
-$family
+$Japan1Ryumin$family
 [1] "Ryumin-Light"
 
-$metrics
+$Japan1Ryumin$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$Japan1Ryumin$cmap
 [1] "EUC-H"
 
-$cmapEncoding
+$Japan1Ryumin$cmapEncoding
 [1] "EUC-JP"
 
-$pdfresource
+$Japan1Ryumin$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $Korea1
-$family
+$Korea1$family
 [1] "Baekmuk-Batang"
 
-$metrics
+$Korea1$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$Korea1$cmap
 [1] "KSCms-UHC-H"
 
-$cmapEncoding
+$Korea1$cmapEncoding
 [1] "CP949"
 
-$pdfresource
+$Korea1$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $Korea1deb
-$family
+$Korea1deb$family
 [1] "Batang-Regular"
 
-$metrics
+$Korea1deb$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$Korea1deb$cmap
 [1] "KSCms-UHC-H"
 
-$cmapEncoding
+$Korea1deb$cmapEncoding
 [1] "CP949"
 
-$pdfresource
+$Korea1deb$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $CNS1
-$family
+$CNS1$family
 [1] "MOESung-Regular"
 
-$metrics
+$CNS1$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$CNS1$cmap
 [1] "B5pc-H"
 
-$cmapEncoding
+$CNS1$cmapEncoding
 [1] "CP950"
 
-$pdfresource
+$CNS1$pdfresource
 [1] ""
 
 attr(,"class")
 [1] "CIDFont"
 
 $GB1
-$family
+$GB1$family
 [1] "BousungEG-Light-GB"
 
-$metrics
+$GB1$metrics
 [1] ""           ""           ""           ""           "Symbol.afm"
 
-$cmap
+$GB1$cmap
 [1] "GBK-EUC-H"
 
-$cmapEncoding
+$GB1$cmapEncoding
 [1] "GBK"
 
-$pdfresource
+$GB1$pdfresource
 [1] ""
 
 attr(,"class")
