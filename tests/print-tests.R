@@ -312,7 +312,7 @@ local({
 
 
 ## User-supplied arguments are forwarded on print-dispatch
-print.foo <- function(x, other = FALSE, digits = 0L, ...) {
+print.foo <- function(x, other = FALSE, digits = 0L, ..., indexTag = "") {
     cat("digits: ", digits, "\n")
     stopifnot(other, digits == 4, !...length())
 }
@@ -341,3 +341,18 @@ options(o)
 
 ## Cleanup
 rm(print.foo, obj, a, b, c, d, o)
+
+
+## Indexing tags for recursive data structures can be supplied by user
+print(list(list(1)), indexTag = "$foo[[100]]")
+
+## Indexing tags are forwarded when recursing via R level print()
+x <- structure(list(list(1), 2), class = "foobar")
+list(list(x))
+print(list(list(x)))
+##
+x <- structure(NA, foo = structure(structure(list(1, 2), class = "foobar"), bar = 1))
+list(list(x))
+print(list(list(x)))
+##
+rm(x)
