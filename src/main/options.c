@@ -249,6 +249,13 @@ int attribute_hidden R_SetOptionWarn(int w)
     return INTEGER(v)[0];
 }
 
+void attribute_hidden R_SetOptionPrintOngoing(Rboolean ongoing)
+{
+    SEXP opt = PROTECT(ongoing ? ScalarLogical(1) : R_NilValue);
+    SetOption(opt, install(".printCustomOngoing"));
+    UNPROTECT(1);
+}
+
 /* Note that options are stored as a dotted pair list */
 /* This is barely historical, but is also useful. */
 

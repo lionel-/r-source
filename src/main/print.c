@@ -199,16 +199,10 @@ static void PrintClosure(SEXP s, R_PrintData *data)
 
 /* Custom printing. */
 
-static Rboolean customPrintOngoing = FALSE;
-
 static Rboolean canPrintCustom(R_PrintData *data)
 {
     SEXP custom = GetOption1(install("print.custom"));
-
-    return
-	data->useCustom &&
-	isFunction(custom) &&
-	!customPrintOngoing;
+    return data->useCustom && isFunction(custom);
 }
 
 struct PrintCustomData {
@@ -217,7 +211,7 @@ struct PrintCustomData {
 };
 static SEXP PrintCustomImpl(void *implData)
 {
-    customPrintOngoing = TRUE;
+    R_SetOptionPrintOngoing(TRUE);
 
     struct PrintCustomData *customData = (struct PrintCustomData *) implData;
     SEXP custom = GetOption1(install("print.custom"));
@@ -228,7 +222,7 @@ static SEXP PrintCustomImpl(void *implData)
 }
 static void PrintCustomCleanup(void *data)
 {
-    customPrintOngoing = FALSE;
+    R_SetOptionPrintOngoing(FALSE);
 }
 
 static void PrintCustom(SEXP s, R_PrintData *data)
@@ -362,9 +356,7 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     /* Initialise the global R_init as other routines still depend on it */
     R_print = data;
 
-    if (canPrintCustom(&data))
-	PrintCustom(x, &data);
-    else if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
+    if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
 	PrintDispatch(x, &data);
     else
 	PrintValueRec(x, &data);
@@ -467,7 +459,7 @@ static void PrintDispatch(SEXP s, R_PrintData *data)
     SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
 
     if (canPrintCustom(data))
-	PrintCustom(s, data);
+	PrintObjectS3(s, data);
     else if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
 	PrintObjectS4(s, data);
     else if (OBJECT(s) || hasPrintDefined(s))
@@ -1114,9 +1106,12 @@ void attribute_hidden PrintValueEnv(SEXP s, SEXP env)
     PrintInit(&data, env);
     data.useCustom = TRUE;
 
+    data.callArgs = PROTECT(cons(ScalarLogical(1), R_NilValue));
+    SET_TAG(data.callArgs, install("useCustom"));
+
     PrintDispatch(s, &data);
 
-    UNPROTECT(1);
+    UNPROTECT(2);
 }
 
 

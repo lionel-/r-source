@@ -16,15 +16,40 @@
 #  A copy of the GNU General Public License is available at
 #  https://www.R-project.org/Licenses/
 
-print <- function(x, ...) UseMethod("print")
+print <- function(x, ..., useCustom = NULL) {
+    if (is.null(useCustom))
+	useCustom <- identical(topenv(parent.frame()), globalenv())
+
+    if (useCustom &&
+	!isTRUE(getOption(".printCustomOngoing")) &&
+	is.function(getOption("print.custom"))) {
+	ongoing <- TRUE
+	print <- getOption("print.custom")
+    } else {
+	ongoing <- FALSE
+	print <- .print
+    }
+
+    old <- options(.printCustomOngoing = ongoing)
+    on.exit(options(old))
+
+    print(x, ..., useCustom = useCustom)
+}
+
+# Might not be necessary
+
+# Dispatch in a separate function so the inferred value of `useCustom`
+# is forwarded to print.default() (and then to print() again if `x`
+# contains recursive data structures).
+.print <- function(x, ..., useCustom = NULL) {
+    UseMethod("print")
+}
 
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
 print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
                           print.gap = NULL, right = FALSE, max = NULL,
-			  useSource = TRUE, ..., indexTag = "", useCustom = NULL)
+			  useSource = TRUE, ..., useCustom = NULL, indexTag = "")
 {
-    if (is.null(useCustom))
-	useCustom <- identical(topenv(parent.frame()), globalenv())
 
     # Arguments are wrapped in another pairlist because we need to
     # forward them to recursive print() calls.
@@ -45,15 +70,10 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
     # with S4 objects (if any argument print() is used instead).
     missings <- c(missing(digits), missing(quote), missing(na.print),
 		  missing(print.gap), missing(right), missing(max),
-		  missing(useSource), FALSE)
+		  missing(useSource), missing(useCustom))
 
     isString <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
-    isBool <- function(x) is.logical(x) && length(x) == 1 && !is.na(x)
-
-    stopifnot(
-	isString(indexTag),
-	isBool(useCustom)
-    )
+    stopifnot(isString(indexTag))
 
     .Internal(print.default(x, indexTag, args, missings))
 }
