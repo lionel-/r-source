@@ -196,45 +196,10 @@ static void PrintClosure(SEXP s, R_PrintData *data)
 	Rprintf("%s\n", EncodeEnvironment(t));
 }
 
-
-/* Custom printing. */
-
 static Rboolean canPrintCustom(R_PrintData *data)
 {
-    SEXP custom = GetOption1(install("print.custom"));
-    return data->useCustom && isFunction(custom);
+    return data->useCustom && isFunction(GetOption1(install("print.custom")));
 }
-
-struct PrintCustomData {
-    SEXP s;
-    R_PrintData *data;
-};
-static SEXP PrintCustomImpl(void *implData)
-{
-    R_SetOptionPrintOngoing(TRUE);
-
-    struct PrintCustomData *customData = (struct PrintCustomData *) implData;
-    SEXP custom = GetOption1(install("print.custom"));
-
-    PrintObjectMasked(customData->s, custom, customData->data);
-
-    return R_NilValue;
-}
-static void PrintCustomCleanup(void *data)
-{
-    R_SetOptionPrintOngoing(FALSE);
-}
-
-static void PrintCustom(SEXP s, R_PrintData *data)
-{
-    struct PrintCustomData implData;
-    implData.s = s;
-    implData.data = data;
-
-    R_ExecWithCleanup(&PrintCustomImpl, (void *) &implData,
-		      &PrintCustomCleanup, NULL);
-}
-
 
 /* This advances `args` and `prev`. If an argument should not be
    forwarded because it was not explicitly supplied by the user,
@@ -342,7 +307,10 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     if(data.useSource) data.useSource = USESOURCE;
     advancePrintArgs(&args, &prev, &missingArg, &allMissing);
 
-    data.useCustom = asLogical(CAR(args));
+    SEXP useCustom = CAR(args);
+    data.useCustom = useCustom == R_NilValue ? FALSE : asLogical(useCustom);
+    if(data.useCustom == NA_LOGICAL)
+	error(_("invalid '%s' argument"), "useCustom");
     advancePrintArgs(&args, &prev, &missingArg, &allMissing);
 
     /* The next arguments are those forwarded in `...`. If all named

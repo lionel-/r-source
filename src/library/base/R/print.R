@@ -20,29 +20,20 @@ print <- function(x, ..., useCustom = NULL) {
     if (is.null(useCustom))
 	useCustom <- identical(topenv(parent.frame()), globalenv())
 
-    if (useCustom &&
+    useCustom <-
+	useCustom &&
 	!isTRUE(getOption(".printCustomOngoing")) &&
-	is.function(getOption("print.custom"))) {
-	ongoing <- TRUE
-	print <- getOption("print.custom")
-    } else {
-	ongoing <- FALSE
-	print <- .print
-    }
+	is.function(getOption("print.custom"))
 
-    old <- options(.printCustomOngoing = ongoing)
+    old <- options(.printCustomOngoing = useCustom)
     on.exit(options(old))
 
-    print(x, ..., useCustom = useCustom)
-}
-
-# Might not be necessary
-
-# Dispatch in a separate function so the inferred value of `useCustom`
-# is forwarded to print.default() (and then to print() again if `x`
-# contains recursive data structures).
-.print <- function(x, ..., useCustom = NULL) {
-    UseMethod("print")
+    if (useCustom) {
+	printCustom <- getOption("print.custom")
+	printCustom(x, ..., useCustom = TRUE)
+    } else {
+	UseMethod("print")
+    }
 }
 
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
