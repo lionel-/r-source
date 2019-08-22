@@ -369,7 +369,6 @@ print.data.frame <- function(x, ...) {
 x <- data.frame(x = 1:3)
 x
 print(x)
-## FIXME: Recursive case doesn't dispatch to user functions
 list(x, list(x))
 print(list(x, list(x)))
 ##
@@ -382,7 +381,6 @@ old <- compiler::enableJIT(0) # Avoid bytecode diffs
 x <- function(x) x
 x
 print(x)
-## FIXME: Recursive case doesn't dispatch to user functions
 list(x, list(x))
 print(list(x, list(x)))
 ##
