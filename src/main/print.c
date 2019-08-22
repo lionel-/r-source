@@ -100,6 +100,7 @@ void PrintInit(R_PrintData *data, SEXP env)
     data->cutoff = GetOptionCutoff();
     data->env = env;
     data->callArgs = R_NilValue;
+    data->useCustom = FALSE;
 }
 
 /* Used in X11 module for dataentry */
@@ -299,6 +300,12 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     if(data.useSource) data.useSource = USESOURCE;
     advancePrintArgs(&args, &prev, &missingArg, &allMissing);
 
+    SEXP useCustom = CAR(args);
+    data.useCustom = useCustom == R_NilValue ? FALSE : asLogical(useCustom);
+    if(data.useCustom == NA_LOGICAL)
+	error(_("invalid '%s' argument"), "useCustom");
+    advancePrintArgs(&args, &prev, &missingArg, &allMissing);
+
     /* The next arguments are those forwarded in `...`. If all named
        arguments were missing and there are no arguments in `...`, the
        user has not supplied any parameter and we can use show() on S4
@@ -369,7 +376,6 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     defineVar(xsym, s, mask);
 
     /* Forward user-supplied arguments to print() */
-    SEXP fun = PROTECT(findFun(install("print"), R_BaseNamespace));
     SEXP args = PROTECT(cons(xsym, data->callArgs));
 
     /* Pass the current tag buffer as argument in case we recurse back
@@ -379,6 +385,7 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     args = PROTECT(cons(mkString(tagbuf), args));
     SET_TAG(args, install("indexTag"));
 
+    SEXP fun = PROTECT(findFun(install("print"), R_BaseNamespace));
     SEXP call = PROTECT(lcons(fun, args));
     eval(call, mask);
 
@@ -392,7 +399,9 @@ static void PrintDispatch(SEXP s, R_PrintData *data)
        because calling into base::print() resets the buffer */
     SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
 
-    if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
+    if (data->useCustom && isFunction(GetOption1(install("printCustom"))))
+	PrintObjectS3(s, data);
+    else if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
 	PrintObjectS4(s, data);
     else if (s != R_MissingArg)
 	PrintObjectS3(s, data);
@@ -1036,9 +1045,14 @@ void attribute_hidden PrintValueEnv(SEXP s, SEXP env)
 
     R_PrintData data;
     PrintInit(&data, env);
+    data.useCustom = TRUE;
+
+    data.callArgs = PROTECT(cons(ScalarLogical(1), R_NilValue));
+    SET_TAG(data.callArgs, install("useCustom"));
+
     PrintDispatch(s, &data);
 
-    UNPROTECT(1);
+    UNPROTECT(2);
 }
 
 

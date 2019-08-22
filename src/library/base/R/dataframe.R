@@ -1491,7 +1491,7 @@ rbind.data.frame <- function(..., deparse.level = 1, make.row.names = TRUE,
 
 print.data.frame <-
     function(x, ..., digits = NULL, quote = FALSE, right = TRUE,
-	     row.names = TRUE, max = NULL)
+	     row.names = TRUE, max = NULL, useCustom = NULL)
 {
     n <- length(row.names(x))
     if(length(x) == 0L) {
@@ -1514,7 +1514,7 @@ print.data.frame <-
 	    dimnames(m)[[1L]] <-
 		if(isFALSE(row.names)) rep.int("", if(omit) n0 else n)
 		else row.names
-	print(m, ..., quote = quote, right = right, max = max)
+	print(m, ..., quote = quote, right = right, max = max, useCustom = FALSE)
 	if(omit)
 	    cat(" [ reached 'max' / getOption(\"max.print\") -- omitted",
 		n - n0, "rows ]\n")

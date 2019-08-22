@@ -328,6 +328,13 @@ getOption(x, default = NULL)
       to be piped to \file{stdin} or to be given a single filename
       argument.  Usually set to \code{"lpr"} on a Unix-alike.}
 
+    \item{\code{printCustom}:}{a function invoked when objects are
+      printed at the console or when \code{\link{print}()} is called
+      from the global environment (see the \code{useCustom} argument of
+      \code{\link{print.default}()} to control this). This function
+      should take \code{x} and \code{\dots} arguments. The dots must be
+      forwarded to \code{print()}, see example below.}
+
     \item{\code{prompt}:}{a non-empty string to be used for \R's prompt;
       should usually end in a blank (\code{" "}).}
 

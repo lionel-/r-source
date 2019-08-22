@@ -16,13 +16,32 @@
 #  A copy of the GNU General Public License is available at
 #  https://www.R-project.org/Licenses/
 
-print <- function(x, ...) UseMethod("print")
+print <- function(x, ..., useCustom = NULL) {
+    if (is.null(useCustom))
+	useCustom <- identical(topenv(parent.frame()), globalenv())
+
+    useCustom <-
+	useCustom &&
+	!isTRUE(getOption(".printCustomOngoing")) &&
+	is.function(getOption("printCustom"))
+
+    old <- options(.printCustomOngoing = useCustom)
+    on.exit(options(old))
+
+    if (useCustom) {
+	printCustom <- getOption("printCustom")
+	printCustom(x, ..., useCustom = TRUE)
+    } else {
+	UseMethod("print")
+    }
+}
 
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
 print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
                           print.gap = NULL, right = FALSE, max = NULL,
-			  useSource = TRUE, indexTag = "", ...)
+			  useSource = TRUE, useCustom = NULL, indexTag = "", ...)
 {
+
     # Arguments are wrapped in another pairlist because we need to
     # forward them to recursive print() calls.
     args <- pairlist(
@@ -33,7 +52,8 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
 	right = right,
 	max = max,
 	useSource = useSource,
-        ...
+	useCustom = useCustom,
+	...
     )
 
     # Missing elements are not forwarded so we pass their
@@ -41,7 +61,7 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
     # with S4 objects (if any argument print() is used instead).
     missings <- c(missing(digits), missing(quote), missing(na.print),
 		  missing(print.gap), missing(right), missing(max),
-		  missing(useSource))
+		  missing(useSource), missing(useCustom))
 
     isString <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
     stopifnot(isString(indexTag))

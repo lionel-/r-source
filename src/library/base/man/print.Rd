@@ -6,7 +6,7 @@
 \name{print}
 \title{Print Values}
 \usage{% print.default() -->  ./print.default.Rd
-print(x, \dots)
+print(x, \dots, useCustom = NULL)
 
 \method{print}{factor}(x, quote = FALSE, max.levels = NULL,
       width = getOption("width"), \dots)
@@ -33,6 +33,14 @@ print(x, \dots)
 \arguments{
   \item{x}{an object used to select a method.}
   \item{\dots}{further arguments passed to or from other methods.}
+  \item{useCustom}{logical, indicating whether to use the
+    \code{printCustom} option (which must be set to a function) if
+    available. By default, this argument is inferred from the caller. If
+    called from the global environment (at the console or in a script),
+    the user customisations are enabled. Otherwise, they are disabled in
+    order to ensure consistent printing in package functions. Set
+    \code{useCustom} to \code{TRUE} or \code{FALSE} to hardcode the
+    behaviour.}.
   \item{quote}{logical, indicating whether or not strings should be
     printed with surrounding quotes.}
   \item{max.levels}{integer, indicating how many levels should be

@@ -13,7 +13,8 @@
 \usage{
 \method{print}{default}(x, digits = NULL, quote = TRUE,
       na.print = NULL, print.gap = NULL, right = FALSE,
-      max = NULL, useSource = TRUE, indexTag = "", \dots)
+      max = NULL, useSource = TRUE, useCustom = NULL,
+      indexTag = "", \dots)
 }
 \arguments{
   \item{x}{the object to be printed.}
@@ -41,6 +42,14 @@
   \item{useSource}{logical, indicating whether to use source
     references or copies rather than deparsing \link{language objects}.
     The default is to use the original source if it is available.}
+  \item{useCustom}{logical, indicating whether to use the
+    \code{printCustom} option (which must be set to a function) if
+    available. By default, this argument is inferred from the caller. If
+    called from the global environment (at the console or in a script),
+    the user customisations are enabled. Otherwise, they are disabled in
+    order to ensure consistent printing in package functions. Set
+    \code{useCustom} to \code{TRUE} or \code{FALSE} to hardcode the
+    behaviour.}.
   \item{indexTag}{a character string, indicating the current indexing
     tag of \code{x}. For example, if you supply \code{print(list(bar =
     1), indexTag = "[[1]]$foo")}}, the list element is printed with the

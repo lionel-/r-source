@@ -312,7 +312,8 @@ local({
 
 
 ## User-supplied arguments are forwarded on print-dispatch
-print.foo <- function(x, other = FALSE, digits = 0L, ..., indexTag = "") {
+print.foo <- function(x, other = FALSE, digits = 0L, ...,
+		      indexTag = "", useCustom = NULL) {
     cat("digits: ", digits, "\n")
     stopifnot(other, digits == 4, !...length())
 }
@@ -396,3 +397,25 @@ x <- alist(, foo = )
 x
 print(x)
 rm(x)
+
+
+## Custom printing is invoked for each object
+printCustom <- function(x, ...) {
+    cat("<custom>\n")
+    print(x, ...)
+}
+options(printCustom = printCustom)
+x <- list(list(1, structure(list(2), class = "foo")))
+x
+print(x)
+
+## Customisation through intermediate
+intermediate <- function(...) print(...)
+printCustom <- function(...) {
+    cat("<custom>\n")
+    intermediate(...)
+}
+options(print.custom = printCustom)
+x <- list(list(1))
+x
+print(x)
