@@ -1126,6 +1126,7 @@ typedef struct {
     int cutoff; // for deparsed language objects
     SEXP env;
     SEXP callArgs;
+    int useCustom;
 } R_PrintData;
 
 /* Other Internally Used Functions */
