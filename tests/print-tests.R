@@ -356,3 +356,52 @@ list(list(x))
 print(list(list(x)))
 ##
 rm(x)
+
+
+## Print and auto-print are consistent when user has defined S3
+## methods in the global environment
+##
+## Data frames:
+print.data.frame <- function(x, ...) {
+    cat("dispatched to print.data.frame\n")
+    base::print.data.frame(x, ...)
+}
+x <- data.frame(x = 1:3)
+x
+print(x)
+## FIXME: Recursive case doesn't dispatch to user functions
+list(x, list(x))
+print(list(x, list(x)))
+##
+## Functions:
+print.function <- function(x, ...) {
+    cat("dispatched to print.function\n")
+    NextMethod()
+}
+old <- compiler::enableJIT(0) # Avoid bytecode diffs
+x <- function(x) x
+x
+print(x)
+## FIXME: Recursive case doesn't dispatch to user functions
+list(x, list(x))
+print(list(x, list(x)))
+##
+## Lists:
+print.list <- function(x, ...) {
+    cat("dispatched to print.list\n")
+    NextMethod()
+}
+list(1)
+print(list(1))
+list(1, list(1))
+print(list(1, list(1)))
+##
+compiler::enableJIT(old)
+rm(print.data.frame, print.function, print.list, x)
+
+
+## Can print lists containing the missing argument
+x <- alist(, foo = )
+x
+print(x)
+rm(x)
