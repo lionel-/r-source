@@ -224,9 +224,10 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     checkArity(op, args);
 
     SEXP x = CAR(args); args = CDR(args);
+    SEXP env = CAR(args); args = CDR(args);
 
     R_PrintData data;
-    PrintInit(&data, rho);
+    PrintInit(&data, env);
 
     /* Index tag is type-checked at R level */
     SEXP oldtagbuf = PROTECT(mkChar(tagbuf));

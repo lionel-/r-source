@@ -46,7 +46,7 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
     isString <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
     stopifnot(isString(indexTag))
 
-    .Internal(print.default(x, indexTag, args, missings))
+    .Internal(print.default(x, parent.frame(), indexTag, args, missings))
 }
 
 prmatrix <-
