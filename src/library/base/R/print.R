@@ -16,7 +16,20 @@
 #  A copy of the GNU General Public License is available at
 #  https://www.R-project.org/Licenses/
 
-print <- function(x, ...) UseMethod("print")
+print <- function(x, ...) {
+    if (.Internal(useCustomAutoprint(parent.frame()))) {
+	# Prevent recursion into autoprint
+	old <- options(.customAutoprintOngoing = sys.nframe())
+	on.exit(options(old))
+
+	custom <- getOption("autoprint")
+	custom(x, ...)
+
+	invisible(x)
+    } else {
+	UseMethod("print")
+    }
+}
 
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
 print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
@@ -46,7 +59,55 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
     isString <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
     stopifnot(isString(indexTag))
 
-    .Internal(print.default(x, parent.frame(), indexTag, args, missings))
+    caller <- parent.frame()
+
+    # If `print()` is directly called back from the customisation
+    # function, and the default method is selected, this means that
+    # the custom function should be used again when printing elements
+    # inside of `x` (if it is a list, or via attributes). Normally, we
+    # inspect the caller environment and check whether it inherits
+    # from the global environment to determine whether to use the
+    # autoprint function. This is problematic if the customisation
+    # function is exported from a package, as it might not inherit
+    # from the global environment. We fix this here. The tricky part
+    # is that we must not force customisation if we're being called
+    # back from another print method. Inspecting the call stack from
+    # the point where custom autoprint was invoked seems the most
+    # robust course of action. If we're falling back from the custom
+    # function, the current frame should be adjascent to the first
+    # print() frame on the stack. Otherwise, it means we're being
+    # called from another print method.
+    i <- getOption(".customAutoprintOngoing")
+    if (is.integer(i)) {
+	i <- i + 1L
+	top <- sys.nframe()
+	while (i < top) {
+	    if (identical(sys.function(i), print)) {
+		if (i + 1L == top)
+		    caller <- globalenv()
+		break
+	    }
+	    i <- i + 1L
+	    next
+	}
+    }
+
+    # Use autoprint customisation if we're called from the global env.
+    # Except if we're called from a print method via NextMethod(), as
+    # the caller is artificially forwarded in this case.
+    useCustom <-
+	identical(topenv(caller), globalenv()) &&
+	(!exists(".Class") || is.null(attr(.Class, "previous")))
+
+    # Reset custom autoprinting flag so we can recurse into
+    # getOption("autoprint") when printing lists. This relies on
+    # do_printdefault() _not_ calling PrintDispatch(), which would
+    # cause infinite recursion. Instead it calls PrintValueRec() which
+    # ensures we'll only dispatch on elements.
+    old <- options(.customAutoprintOngoing = NULL)
+    on.exit(options(old))
+
+    .Internal(print.default(x, caller, useCustom, indexTag, args, missings))
 }
 
 prmatrix <-

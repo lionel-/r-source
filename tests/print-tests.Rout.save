@@ -1161,8 +1161,6 @@ dispatched to print.list
 
 
 > ##
-> compiler::enableJIT(old)
-[1] 0
 > rm(print.data.frame, print.function, print.list, x)
 > 
 > 
@@ -1183,4 +1181,369 @@ $foo
 
 
 > rm(x)
+> 
+> 
+> ## Custom autoprint is invoked for all elements
+> myprint <- function(x, ...) {
++     cat("<DISPATCHED>\n")
++     print(x, ...)
++ }
+> options(autoprint = myprint)
+> x <- list(
++     NULL,
++     list(function(x) x),
++     structure(list(list(environment())), foo = pairlist(list(quote(foo()))))
++ )
+> x
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+NULL
+
+[[2]]
+<DISPATCHED>
+[[2]][[1]]
+<DISPATCHED>
+function (x) 
+x
+
+
+[[3]]
+<DISPATCHED>
+[[3]][[1]]
+<DISPATCHED>
+[[3]][[1]][[1]]
+<DISPATCHED>
+<environment: R_GlobalEnv>
+
+
+attr(,"foo")
+<DISPATCHED>
+attr(,"foo")[[1]]
+<DISPATCHED>
+attr(,"foo")[[1]][[1]]
+<DISPATCHED>
+foo()
+
+
+
+> print(x)
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+NULL
+
+[[2]]
+<DISPATCHED>
+[[2]][[1]]
+<DISPATCHED>
+function (x) 
+x
+
+
+[[3]]
+<DISPATCHED>
+[[3]][[1]]
+<DISPATCHED>
+[[3]][[1]][[1]]
+<DISPATCHED>
+<environment: R_GlobalEnv>
+
+
+attr(,"foo")
+<DISPATCHED>
+attr(,"foo")[[1]]
+<DISPATCHED>
+attr(,"foo")[[1]][[1]]
+<DISPATCHED>
+foo()
+
+
+
+> rm(x)
+> 
+> ## Can fallback to print() via intermediate functions, potentially exported
+> intermediate <- function(...) print(...)
+> environment(intermediate) <- asNamespace("stats")
+> myprint <- function(x, ...) {
++     cat("<DISPATCHED>\n")
++     intermediate(x, ...)
++ }
+> options(autoprint = myprint)
+> list(list(1))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> 
+> ## Support autoprint functions exported from namespaces. These should
+> ## have the same output
+> options(autoprint = myprint)
+> list(list(1))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> ##
+> environment(myprint) <- new.env(parent = asNamespace("base"))
+> options(autoprint = myprint)
+> list(list(1))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> 
+> ## Custom autoprint is not invoked when called from a package
+> foobar <- function(x) structure(list(x), class = "foobar")
+> print.foobar <- function(x, ...) {
++     cat("<foobar>\n")
++     attributes(x) <- NULL
++     # Shouldn't invoke custom autoprint
++     print(x, ...)
++ }
+> environment(print.foobar) <- asNamespace("stats")
+> foobar(NA)
+<DISPATCHED>
+<foobar>
+[[1]]
+[1] NA
+
+> print(foobar(NA))
+<DISPATCHED>
+<foobar>
+[[1]]
+[1] NA
+
+> foobar(list(NA))
+<DISPATCHED>
+<foobar>
+[[1]]
+[[1]][[1]]
+[1] NA
+
+
+> print(foobar(list(NA)))
+<DISPATCHED>
+<foobar>
+[[1]]
+[[1]][[1]]
+[1] NA
+
+
+> 
+> ## Custom autoprint is not invoked when package method calls NextMethod()
+> print.foobar <- function(x, ...) {
++     cat("<foobar>\n")
++     attributes(x) <- NULL
++     # Shouldn't invoke custom autoprint
++     NextMethod()
++ }
+> environment(print.foobar) <- asNamespace("stats")
+> foobar(NA)
+<DISPATCHED>
+<foobar>
+[[1]]
+[1] NA
+
+> print(foobar(NA))
+<DISPATCHED>
+<foobar>
+[[1]]
+[1] NA
+
+> foobar(list(NA))
+<DISPATCHED>
+<foobar>
+[[1]]
+[[1]][[1]]
+[1] NA
+
+
+> print(foobar(list(NA)))
+<DISPATCHED>
+<foobar>
+[[1]]
+[[1]][[1]]
+[1] NA
+
+
+> 
+> ## Setting the autoprint option doesn't disturb print methods in
+> ## packages that call into print(). One example is print.data.frame()
+> ## which assembles the data into a matrix and prints that:
+> myprint <- function(x, ...) {
++     cat("<DISPATCHED>\n")
++     print(x, ...)
++ }
+> options(autoprint = myprint)
+> ##
+> data.frame(x = 1)
+<DISPATCHED>
+  x
+1 1
+> print(data.frame(x = 1))
+<DISPATCHED>
+  x
+1 1
+> list(data.frame(x = 1))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+  x
+1 1
+
+> print(list(data.frame(x = 1)))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+  x
+1 1
+
+> ##
+> pkgprint <- function() {
++     print(letters)
++     invisible(NULL)
++ }
+> environment(pkgprint) <- asNamespace("base")
+> pkgprint()
+ [1] "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s"
+[20] "t" "u" "v" "w" "x" "y" "z"
+> rm(pkgprint)
+> 
+> ## Can set custom autoprint to a generic function
+> myprint <- function(x, ...) {
++     UseMethod("myprint")
++ }
+> myprint.default <- function(x, ...) {
++     cat("<DISPATCHED>\n")
++     print(x, ...)
++ }
+> options(autoprint = myprint)
+> list(list(1))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> print(list(list(1)))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> ##
+> environment(myprint) <- asNamespace("base")
+> environment(myprint.default) <- asNamespace("base")
+> list(list(1))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> print(list(list(1)))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+[[1]][[1]]
+<DISPATCHED>
+[1] 1
+
+
+> 
+> ## Can print the missing argument
+> options(autoprint = NULL)
+> alist(, )
+[[1]]
+
+
+[[2]]
+
+
+> print(alist(, ))
+[[1]]
+
+
+[[2]]
+
+
+> options(autoprint = myprint)
+> alist(, )
+<DISPATCHED>
+[[1]]
+
+
+[[2]]
+
+
+> print(alist(, ))
+<DISPATCHED>
+[[1]]
+
+
+[[2]]
+
+
+> 
+> ## Can customise printing of S4 objects
+> setClass("testAutoprint", slots = c(x = "numeric"))
+> setMethod("show", "testAutoprint", function(object) cat("<S4>\n"))
+> x <- new("testAutoprint")
+> x
+<DISPATCHED>
+<S4>
+> print(x)
+<DISPATCHED>
+<S4>
+> show(x)
+<S4>
+> list(x)
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+<S4>
+
+> print(list(x))
+<DISPATCHED>
+[[1]]
+<DISPATCHED>
+<S4>
+
+> show(list(x))
+[[1]]
+<S4>
+
+> ## S4 dispatches to show() when autoprint is disabled
+> options(autoprint = NULL)
+> x
+<S4>
+> print(x)
+<S4>
+> rm(x)
+> 
+> ## Cleanup
+> rm(foobar, print.foobar, myprint, myprint.default)
+> options(autoprint = NULL)
+> compiler::enableJIT(old)
+[1] 0
 > 

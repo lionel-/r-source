@@ -84,6 +84,9 @@ print(x, \dots)
   \code{\link{cat}}, \code{\link{format}} or also \code{\link{write}}.
   For a simple prototypical print method, see
   \code{\link[tools]{.print.via.format}} in package \pkg{tools}.
+
+  The \code{\link[=options]{autoprint}} global option to customise
+  autoprinting.
 }
 \examples{
 require(stats)

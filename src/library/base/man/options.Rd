@@ -333,6 +333,12 @@ getOption(x, default = NULL)
       to be piped to \file{stdin} or to be given a single filename
       argument.  Usually set to \code{"lpr"} on a Unix-alike.}
 
+    \item{\code{autoprint}:}{a function invoked when objects are printed
+      at the console or when \code{\link{print}()} is called from the
+      global environment. This function should take \code{x} and
+      \code{\dots} arguments. The dots must be forwarded to
+      \code{print()} for a consistent output, see example below.}
+
     \item{\code{prompt}:}{a non-empty string to be used for \R's prompt;
       should usually end in a blank (\code{" "}).}
 
@@ -836,6 +842,40 @@ if(is.null(tmp))
 if(tmp)
    cat("do cleanup\n")
 }
+
+myprint <- function(x, ...) {
+    if (!is.object(x) && is.list(x)) {
+	str(x, max.levels = 3)
+	return(invisible(x))
+    }
+
+    if (is.factor(x)) {
+	cat("<factor>\n")
+	print(table(x, dnn = NULL), ...)
+	return(invisible(x))
+    }
+
+    if (is.data.frame(x))
+	x <- head(x)
+
+    # Fall back to print
+    base::print(x, ...)
+}
+options(autoprint = myprint)
+
+# Lists are now printed with str()
+list(list(1, list(3)))
+
+iris$Species
+
+# Data frames are truncated
+mtcars
+
+# Other objects are printed normally
+letters
+
+# Reset
+options(autoprint = NULL)
 
 }
 \keyword{environment}

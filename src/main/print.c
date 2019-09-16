@@ -74,6 +74,7 @@ R_PrintData R_print;
 
 static void printAttributes(SEXP, R_PrintData *, Rboolean);
 static void PrintDispatch(SEXP, R_PrintData *);
+static void PrintObjectS4(SEXP, R_PrintData *);
 
 
 #define TAGBUFLEN 256
@@ -100,6 +101,7 @@ void PrintInit(R_PrintData *data, SEXP env)
     data->cutoff = GetOptionCutoff();
     data->env = env;
     data->callArgs = R_NilValue;
+    data->useCustom = 1;
 }
 
 /* Used in X11 module for dataentry */
@@ -229,6 +231,9 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     R_PrintData data;
     PrintInit(&data, env);
 
+    SEXP useCustom = CAR(args); args = CDR(args);
+    data.useCustom = asLogical(useCustom);
+
     /* Index tag is type-checked at R level */
     SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
     SEXP newtagbuf = STRING_ELT(CAR(args), 0); args = CDR(args);
@@ -312,7 +317,7 @@ SEXP attribute_hidden do_printdefault(SEXP call, SEXP op, SEXP args, SEXP rho)
     R_print = data;
 
     if (noParams && IS_S4_OBJECT(x) && isMethodsDispatchOn())
-	PrintDispatch(x, &data);
+	PrintObjectS4(x, &data);
     else
 	PrintValueRec(x, &data);
 
@@ -387,6 +392,24 @@ static void PrintObjectS3(SEXP s, R_PrintData *data)
     UNPROTECT(5); /* mask, fun, args, call */
 }
 
+static Rboolean useCustomAutoprint(SEXP env)
+{
+    return
+	isFunction(GetOption1(install("autoprint"))) &&
+	GetOption1(install(".customAutoprintOngoing")) == R_NilValue &&
+	topenv(R_NilValue, env) == R_GlobalEnv;
+}
+
+SEXP attribute_hidden do_usecustomautoprint(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    return ScalarLogical(useCustomAutoprint(CAR(args)));
+}
+
+static Rboolean useCustomAutoprintFromNative(R_PrintData *data)
+{
+    return data->useCustom && useCustomAutoprint(data->env);
+}
+
 /* We could just call the print() generic on all objects and recurse
    through print.default(), but then autoprint would bump the refcount
    of `s` and cause unnecessary duplications. So we first check that
@@ -418,7 +441,9 @@ static void PrintDispatch(SEXP s, R_PrintData *data)
        because calling into base::print() resets the buffer */
     SEXP oldtagbuf = PROTECT(mkChar(tagbuf));
 
-    if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
+    if (s != R_MissingArg && useCustomAutoprintFromNative(data))
+	PrintObjectS3(s, data);
+    else if (isMethodsDispatchOn() && IS_S4_OBJECT(s))
 	PrintObjectS4(s, data);
     else if (hasPrintDefined(s, data))
 	PrintObjectS3(s, data);
