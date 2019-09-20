@@ -135,6 +135,7 @@ FUNTAB R_FunTab[] =
 {".addCondHands",do_addCondHands,	0,	111,	5,	{PP_FUNCALL, PREC_FN,	  0}},
 {".addGlobHands",do_addGlobHands,	0,	211,	5,	{PP_FUNCALL, PREC_FN,	  0}},
 {".resetCondHands",do_resetCondHands,	0,	111,	1,	{PP_FUNCALL, PREC_FN,	  0}},
+{".resetGlobHands",do_resetGlobHands,	0,	111,	0,	{PP_FUNCALL, PREC_FN,	  0}},
 {".signalCondition",do_signalCondition,	0,	11,	3,	{PP_FUNCALL, PREC_FN,	  0}},
 {".dfltStop",do_dfltStop,	0,	11,	2,	{PP_FUNCALL, PREC_FN,	  0}},
 {".dfltWarn",do_dfltWarn,	0,	11,	2,	{PP_FUNCALL, PREC_FN,	  0}},

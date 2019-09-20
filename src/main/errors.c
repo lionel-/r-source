@@ -2409,19 +2409,8 @@ SEXP do_tryCatchHelper(SEXP call, SEXP op, SEXP args, SEXP env)
     }
 }
 
-SEXP attribute_hidden do_addGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
+static void updateGlobHands(SEXP oldstk)
 {
-    checkArity(op, args);
-    SEXP classes = CAR(args);
-
-    if (!length(classes))
-	return(makeHandlerStack(R_HandlerStack));
-
-    SEXP oldstk = R_ToplevelContext->handlerstack;
-
-    R_HandlerStack = oldstk;
-    do_addCondHands(call, op, args, rho);
-
     /* This is needed to handle intermediate contexts that would
        restore the handler stack to the value when begincontext was
        called. This function should only be called in a context where
@@ -2441,6 +2430,36 @@ SEXP attribute_hidden do_addGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
 	else error("should not be called with handlers on the stack");
 
     R_ToplevelContext->handlerstack = R_HandlerStack;
+}
+
+SEXP attribute_hidden do_addGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
+{
+    checkArity(op, args);
+    SEXP classes = CAR(args);
+
+    if (!length(classes))
+	return(makeHandlerStack(R_ToplevelContext->handlerstack));
+
+    SEXP oldstk = R_ToplevelContext->handlerstack;
+    R_HandlerStack = oldstk;
+
+    do_addCondHands(call, op, args, rho);
+    updateGlobHands(oldstk);
+
     R_Visible = 0;
     return R_NilValue;
+}
+
+SEXP attribute_hidden do_resetGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
+{
+    checkArity(op, args);
+
+    SEXP oldstk = PROTECT(R_ToplevelContext->handlerstack);
+
+    R_HandlerStack = R_NilValue;
+    updateGlobHands(oldstk);
+
+    oldstk = makeHandlerStack(oldstk);
+    UNPROTECT(1);
+    return oldstk;
 }
