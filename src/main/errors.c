@@ -2419,7 +2419,7 @@ SEXP attribute_hidden do_addGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
 
     SEXP oldstk = R_ToplevelContext->handlerstack;
 
-    R_HandlerStack = R_NilValue;
+    R_HandlerStack = oldstk;
     do_addCondHands(call, op, args, rho);
 
     /* This is needed to handle intermediate contexts that would
