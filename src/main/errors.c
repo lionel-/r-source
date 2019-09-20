@@ -1626,6 +1626,30 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
     }
 }
 
+static SEXP makeHandlerStack(SEXP stack)
+{
+    stack = PROTECT(shallow_duplicate(stack));
+
+    SEXP node = stack;
+    while (node != R_NilValue) {
+	SEXP entry = CAR(node);
+	SETCAR(node, ENTRY_HANDLER(entry));
+	SET_TAG(node, installChar(ENTRY_CLASS(entry)));
+	node = CDR(node);
+    }
+
+    stack = coerceVector(stack, VECSXP);
+
+    UNPROTECT(1);
+    return stack;
+}
+
+/* For debugging */
+void attribute_hidden printHandlerStack(RCNTXT *cntxt) {
+    cntxt = cntxt ? cntxt : R_GlobalContext;
+    Rf_PrintValue(makeHandlerStack(cntxt->handlerstack));
+}
+
 SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
     SEXP classes, handlers, parentenv, target, oldstack, newstack, result;
@@ -2387,6 +2411,12 @@ SEXP do_tryCatchHelper(SEXP call, SEXP op, SEXP args, SEXP env)
 
 SEXP attribute_hidden do_addGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
 {
+    checkArity(op, args);
+    SEXP classes = CAR(args);
+
+    if (!length(classes))
+	return(makeHandlerStack(R_HandlerStack));
+
     SEXP oldstk = R_ToplevelContext->handlerstack;
 
     R_HandlerStack = R_NilValue;
@@ -2411,5 +2441,6 @@ SEXP attribute_hidden do_addGlobHands(SEXP call, SEXP op,SEXP args, SEXP rho)
 	else error("should not be called with handlers on the stack");
 
     R_ToplevelContext->handlerstack = R_HandlerStack;
-    return NULL;
+    R_Visible = 0;
+    return R_NilValue;
 }
