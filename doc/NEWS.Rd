@@ -103,6 +103,11 @@
       \item Added an argument \code{add_datalist(*, small.size = 0)} to
       allow the creation of a \file{data/datalist} file even when the
       total size of the data sets is small.
+
+      \item New \code{globalCallingHandlers()} function to establish
+      global condition handlers. Unlike the legacy approach to global
+      handling with \code{getOption("error")}, you can register multiple
+      handlers for any condition class.
     }
   }
 

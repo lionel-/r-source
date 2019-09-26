@@ -359,3 +359,38 @@ allowInterrupts <- function(expr) {
     else
         expr
 }
+
+# local() is not yet available when this is evaluated so we use a
+# throw-away closure instead
+globalCallingHandlers <-
+    (function() {
+	gh <- list()
+	function(...) {
+	    handlers <- list(...)
+
+	    # Unwrap list of handlers passed as single argument
+	    if (length(handlers) == 1 && is.list(handlers[[1]]))
+		handlers <- handlers[[1]]
+
+	    if (length(handlers) == 0)
+		return(gh)
+
+	    if (identical(handlers, list(NULL))) {
+		out <- gh
+		gh <<- list()
+	    } else {
+		classes <- names(handlers)
+		if (length(classes) != length(handlers))
+		    stop("bad handler specification")
+		if (!all(vapply(handlers, is.function, logical(1))))
+		    stop("condition handlers must be functions")
+		out <- NULL
+		gh <<- c(handlers, gh)
+	    }
+
+	    # Update the handler stack of the top-level context
+	    .Internal(.addGlobHands(names(gh), gh, .GlobalEnv, NULL, TRUE))
+
+	    invisible(out)
+	}
+    })()
