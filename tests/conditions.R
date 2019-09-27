@@ -84,3 +84,22 @@ globalCallingHandlers(foobars)
 handlers <- withCallingHandlers(foo = function(...) NULL, globalCallingHandlers())
 stopifnot(identical(handlers, foobars))
 globalCallingHandlers(NULL)
+
+## Registering a handler again moves it to the top of the stack
+globalCallingHandlers(
+    warning = function(...) "foo",
+    error = function(...) "foo",
+    condition = function(...) "foo",
+    error = function(...) "bar"
+)
+globalCallingHandlers(
+    error = function(...) "foo"
+)
+bumped <- list(
+    error = function(...) "foo",
+    warning = function(...) "foo",
+    condition = function(...) "foo",
+    error = function(...) "bar"
+)
+stopifnot(identical(globalCallingHandlers(), bumped))
+globalCallingHandlers(NULL)

@@ -388,6 +388,20 @@ globalCallingHandlers <-
 		gh <<- c(handlers, gh)
 	    }
 
+	    # Remove duplicate handlers within class. We do it here so
+	    # duplicates in `...` inputs are also removed. This
+	    # preserves the ordering of handlers. We keep only the
+	    # first duplicate on the stack, so that registering a
+	    # handler again has the effect of pushing it on top of the
+	    # stack.
+	    classes <- names(gh)
+	    for (class in unique(classes)) {
+		idx <- which(class == classes)
+		dups <- duplicated(gh[idx])
+		if (any(dups))
+		    gh <<- gh[-idx[dups]]
+	    }
+
 	    # Update the handler stack of the top-level context
 	    .Internal(.addGlobHands(names(gh), gh, .GlobalEnv, NULL, TRUE))
 
