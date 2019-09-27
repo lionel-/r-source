@@ -69,7 +69,7 @@ tryCatch <- function(expr, ..., finally) {
     classes <- names(handlers)
     parentenv <- parent.frame()
     if (length(classes) != length(handlers))
-        stop("bad handler specification")
+        stop("condition handlers must be specified with a condition class")
     tryCatchList(expr, classes, parentenv, handlers)
 }
 
@@ -78,7 +78,7 @@ withCallingHandlers <- function(expr, ...) {
     classes <- names(handlers)
     parentenv <- parent.frame()
     if (length(classes) != length(handlers))
-        stop("bad handler specification")
+        stop("condition handlers must be specified with a condition class")
     .Internal(.addCondHands(classes, handlers, parentenv, NULL, TRUE))
     expr
 }
@@ -381,7 +381,7 @@ globalCallingHandlers <-
 	    } else {
 		classes <- names(handlers)
 		if (length(classes) != length(handlers))
-		    stop("bad handler specification")
+		    stop("condition handlers must be specified with a condition class")
 		if (!all(vapply(handlers, is.function, logical(1))))
 		    stop("condition handlers must be functions")
 		out <- NULL
