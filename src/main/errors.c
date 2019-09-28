@@ -2290,19 +2290,14 @@ static void default_tryCatch_finally(void *data) { }
 
 static SEXP trycatch_callback = NULL;
 static const char* trycatch_callback_source =
-    "function(code, conds, fin) {\n"
-    "    handler <- function(cond)\n"
-    "        if (inherits(cond, conds))\n"
-    "            .Internal(C_tryCatchHelper(code, 1L, cond))\n"
-    "        else\n"
-    "            signalCondition(cond)\n"
+    "function(addr, classes, fin) {\n"
+    "    handler <- function(cond) .Internal(C_tryCatchHelper(addr, 1L, cond))\n"
+    "    handlers <- rep_len(alist(handler), length(classes))\n"
+    "    names(handlers) <- classes\n"
     "    if (fin)\n"
-    "        tryCatch(.Internal(C_tryCatchHelper(code, 0L)),\n"
-    "                 condition = handler,\n"
-    "                 finally = .Internal(C_tryCatchHelper(code, 2L)))\n"
-    "    else\n"
-    "        tryCatch(.Internal(C_tryCatchHelper(code, 0L)),\n"
-    "                 condition = handler)\n"
+    "	     handlers <- c(handlers, alist(finally = .Internal(C_tryCatchHelper(addr, 2L))))\n"
+    "    args <- c(alist(.Internal(C_tryCatchHelper(addr, 0L))), handlers)\n"
+    "    do.call('tryCatch', args)\n"
     "}";
 
 SEXP R_tryCatch(SEXP (*body)(void *), void *bdata,
