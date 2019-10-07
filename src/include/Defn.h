@@ -1183,6 +1183,7 @@ void R_reInitTempDir(int);
 void InitTypeTables(void);
 void initStack(void);
 void InitS3DefaultTypes(void);
+void InitErrors();
 void internalTypeCheck(SEXP, SEXP, SEXPTYPE);
 Rboolean isMethodsDispatchOn(void);
 int isValidName(const char *);
@@ -1283,6 +1284,7 @@ SEXP R_syscall(int,RCNTXT*);
 int R_sysparent(int,RCNTXT*);
 SEXP R_sysframe(int,RCNTXT*);
 SEXP R_sysfunction(int,RCNTXT*);
+RCNTXT * findExecContextChild(RCNTXT *, SEXP);
 
 void R_run_onexits(RCNTXT *);
 void NORET R_jumpctxt(RCNTXT *, int, SEXP);

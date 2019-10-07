@@ -23,64 +23,49 @@
 ## CARE:  try() in ./New-Internal.R  depends on *internal* coding of tryCatch()!
 ## ----   If you change this, be sure to adapt  try().
 tryCatch <- function(expr, ..., finally) {
-    tryCatchList <- function(expr, names, parentenv, handlers) {
+    tryCatchList <- function(expr, names, handlers) {
 	nh <- length(names)
 	if (nh > 1L)
-	    tryCatchOne(tryCatchList(expr, names[-nh], parentenv,
-                                     handlers[-nh]),
-			names[nh], parentenv, handlers[[nh]])
+	    tryCatchOne(tryCatchList(expr, names[-nh], handlers[-nh]),
+			names[nh], handlers[[nh]])
 	else if (nh == 1L)
-	    tryCatchOne(expr, names, parentenv, handlers[[1L]])
+	    tryCatchOne(expr, names, handlers[[1L]])
 	else expr
     }
-    tryCatchOne <- function(expr, name, parentenv, handler) {
-	doTryCatch <- function(expr, name, parentenv, handler) {
-	    .Internal(.addCondHands(name, list(handler), parentenv,
-				    environment(), FALSE))
+    tryCatchOne <- function(expr, name, handler) {
+        # Technically, `doTryCatch()` is no longer needed, but
+        # packages are relying on the call stack structure of
+        # `tryCatch()`.
+	doTryCatch <- function(expr, name, handler) {
+            # If an exit handler is invoked, `doTryCatch()` returns
+            # with the value of its invokation. Otherwise, it returns
+            # with the value of `expr`.
+	    .Internal(.addCondHand(environment(), FALSE, as.name(name), handler))
 	    expr
 	}
-	value <- doTryCatch(return(expr), name, parentenv, handler)
-	# The return in the call above will exit tryCatchOne unless
-	# the handler is invoked; we only get to this point if the handler
-	# is invoked.  If we get here then the handler will have been
-	# popped off the internal handler stack.
-	if (is.null(value[[1L]])) {
-	    # a simple error; message is stored internally
-	    # and call is in result; this defers all allocs until
-	    # after the jump
-	    msg <- .Internal(geterrmessage())
-	    call <- value[[2L]]
-	    cond <- simpleError(msg, call)
-	}
-        else if (is.character(value[[1L]])) {
-            # if the jump for a simple error is intercepted to handle
-            # an on.exit() action then the error message is encoded as
-            # a character object at that point
-	    msg <- value[[1L]]
-	    call <- value[[2L]]
-	    cond <- simpleError(msg, call)
-        }
-	else cond <- value[[1L]]
-	value[[3L]](cond)
+	doTryCatch(expr, name, handler)
     }
     if (! missing(finally))
         on.exit(finally)
     handlers <- list(...)
     classes <- names(handlers)
-    parentenv <- parent.frame()
     if (length(classes) != length(handlers))
         stop("bad handler specification")
-    tryCatchList(expr, classes, parentenv, handlers)
+    tryCatchList(expr, classes, handlers)
+}
+localCatch <- function(...) {
+    .Internal(.addCondHandsList(parent.frame(), FALSE, ...))
 }
 
 withCallingHandlers <- function(expr, ...) {
-    handlers <- list(...)
-    classes <- names(handlers)
-    parentenv <- parent.frame()
-    if (length(classes) != length(handlers))
-        stop("bad handler specification")
-    .Internal(.addCondHands(classes, handlers, parentenv, NULL, TRUE))
+    localCallingHandlers(...)
     expr
+}
+localCallingHandlers <- function(...) {
+    .Internal(.addCondHandsList(parent.frame(), TRUE, ...))
+}
+globalCallingHandlers <- function(...) {
+    .Internal(.addGlobalHandsList(globalenv(), TRUE, ...))
 }
 
 suppressWarnings <- function(expr) {

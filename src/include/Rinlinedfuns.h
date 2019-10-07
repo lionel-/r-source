@@ -677,6 +677,30 @@ INLINE_FUN SEXP listAppend(SEXP s, SEXP t)
     return s;
 }
 
+/* Destructive list reverse - Result might need to be protected. */
+
+INLINE_FUN SEXP listReverse(SEXP s)
+{
+    if (s == R_NilValue)
+	return R_NilValue;
+
+    SEXP prev = R_NilValue;
+    SEXP next = R_NilValue;
+    SEXP tail = s;
+
+    for (; tail != R_NilValue; tail = next) {
+	next = CDR(tail);
+
+	if (next == s)
+	    error("Internal error: cycle detected in `listReverse()`");
+
+	SETCDR(tail, prev);
+	prev = tail;
+    }
+
+    return prev;
+}
+
 
 /* Language based list constructs.  These are identical to the list */
 /* constructs, but the results can be evaluated. */

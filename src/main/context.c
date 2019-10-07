@@ -282,10 +282,18 @@ void begincontext(RCNTXT * cptr, int flags,
 
 void endcontext(RCNTXT * cptr)
 {
-    void R_FixupExitingHandlerResult(SEXP); /* defined in error.x */
+    /* defined in error.x */
+    void R_FixupExitingHandlerResult(SEXP);
+    SEXP R_invokeExitingHandler(SEXP);
+
+    /* Run exiting condition handler in the context of on.exit() handlers. */
+    if (cptr->returnValue && ATTRIB(cptr->returnValue) == R_ExitingHandlerToken)
+	cptr->returnValue = R_invokeExitingHandler(cptr->returnValue);
+
     R_HandlerStack = cptr->handlerstack;
     R_RestartStack = cptr->restartstack;
     RCNTXT *jumptarget = cptr->jumptarget;
+
     if (cptr->cloenv != R_NilValue && cptr->conexit != R_NilValue ) {
 	SEXP s = cptr->conexit;
 	Rboolean savevis = R_Visible;
@@ -722,6 +730,21 @@ SEXP attribute_hidden do_parentframe(SEXP call, SEXP op, SEXP args, SEXP rho)
 	cptr = cptr->nextcontext;
     }
     return R_GlobalEnv;
+}
+
+/* findExecContextChild - Find the child of a context frame older or
+   equal to `cptr` that has `envir` as execution environment (the
+   `cloenv` field). */
+RCNTXT * attribute_hidden findExecContextChild(RCNTXT *cptr, SEXP envir) {
+    RCNTXT * prev = cptr;
+    while (cptr->nextcontext) {
+	if (cptr->callflag & CTXT_FUNCTION && cptr->cloenv == envir)
+	    return prev;
+	prev = cptr;
+	cptr = cptr->nextcontext;
+    }
+
+    return NULL;
 }
 
 /* R_ToplevelExec - call fun(data) within a top level context to

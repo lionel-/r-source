@@ -871,6 +871,7 @@ void setup_Rmainloop(void)
     InitStringHash(); /* must be before InitNames */
     InitBaseEnv();
     InitNames(); /* must be after InitBaseEnv to use R_EmptyEnv */
+    InitErrors();
     InitParser();  /* must be after InitMemory, InitNames */
     InitGlobalEnv();
     InitDynload();

@@ -50,6 +50,90 @@ static int inPrintWarnings = 0;
 static int immediateWarning = 0;
 static int noBreakWarning = 0;
 
+/* Initialised during R startup. */
+static SEXP R_HandlerResultToken = NULL;
+static SEXP R_SimpleErrorCondition = NULL;
+
+static SEXP R_HandlerSymbol = NULL;
+static SEXP R_ConditionSymbol = NULL;
+static SEXP R_InvokeExitingCall = NULL;
+
+static SEXP R_ErrorsChars = NULL;
+static SEXP R_SimpleErrorChar = NULL;
+static SEXP R_ErrorChar = NULL;
+static SEXP R_ConditionChar = NULL;
+static SEXP R_InterruptChar = NULL;
+static SEXP R_BrowserChar = NULL;
+static SEXP R_TryRestartChar = NULL;
+static SEXP R_AbortChar = NULL;
+
+/* Only cache objects related to error handling. Error throwing should
+   work without initialisation so we can throw during early stages of
+   R startup. */
+void attribute_hidden InitErrors() {
+    R_HandlerResultToken = cons(R_NilValue, R_NilValue);
+    R_PreserveObject(R_HandlerResultToken);
+
+    R_ExitingHandlerToken = cons(R_NilValue, R_NilValue);
+    R_PreserveObject(R_ExitingHandlerToken);
+    SET_TAG(R_ExitingHandlerToken, install("ExitingHandlerToken"));
+
+
+    R_HandlerSymbol = install("handler");
+    R_ConditionSymbol = install("condition");
+
+    R_InvokeExitingCall = lang2(R_HandlerSymbol, R_ConditionSymbol);
+    R_PreserveObject(R_InvokeExitingCall);
+
+
+    /* Cached CHARSXP */
+
+    R_ErrorsChars = allocVector(STRSXP, 7);
+    R_PreserveObject(R_ErrorsChars);
+
+    R_SimpleErrorChar = mkChar("simpleError");
+    SET_STRING_ELT(R_ErrorsChars, 0, R_SimpleErrorChar);
+
+    R_ErrorChar = mkChar("error");
+    SET_STRING_ELT(R_ErrorsChars, 1, R_ErrorChar);
+
+    R_ConditionChar = mkChar("condition");
+    SET_STRING_ELT(R_ErrorsChars, 2, R_ConditionChar);
+
+    R_InterruptChar = mkChar("interrupt");
+    SET_STRING_ELT(R_ErrorsChars, 3, R_InterruptChar);
+
+    R_BrowserChar = mkChar("browser");
+    SET_STRING_ELT(R_ErrorsChars, 4, R_BrowserChar);
+
+    R_TryRestartChar = mkChar("tryRestart");
+    SET_STRING_ELT(R_ErrorsChars, 5, R_TryRestartChar);
+
+    R_AbortChar = mkChar("abort");
+    SET_STRING_ELT(R_ErrorsChars, 6, R_AbortChar);
+
+
+    /* Simple error mold */
+
+    R_SimpleErrorCondition = allocVector(VECSXP, 2);
+    R_PreserveObject(R_SimpleErrorCondition);
+
+    SEXP fields = PROTECT(allocVector(STRSXP, 2));
+    setAttrib(R_SimpleErrorCondition, R_NamesSymbol, fields);
+    UNPROTECT(1);
+
+    SET_STRING_ELT(fields, 0, mkChar("message"));
+    SET_STRING_ELT(fields, 1, mkChar("call"));
+
+    SEXP classes = PROTECT(allocVector(STRSXP, 3));
+    setAttrib(R_SimpleErrorCondition, R_ClassSymbol, classes);
+    UNPROTECT(1);
+
+    SET_STRING_ELT(classes, 0, mkChar("simpleError"));
+    SET_STRING_ELT(classes, 1, mkChar("error"));
+    SET_STRING_ELT(classes, 2, mkChar("condition"));
+}
+
 static void try_jump_to_restart(void);
 // The next is crucial to the use of NORET attributes.
 static void NORET
@@ -882,10 +966,7 @@ void NORET errorcall_cpy(SEXP call, const char *format, ...)
 SEXP attribute_hidden do_geterrmessage(SEXP call, SEXP op, SEXP args, SEXP env)
 {
     checkArity(op, args);
-    SEXP res = PROTECT(allocVector(STRSXP, 1));
-    SET_STRING_ELT(res, 0, mkChar(errbuf));
-    UNPROTECT(1);
-    return res;
+    return mkString(errbuf);
 }
 
 void error(const char *format, ...)
@@ -908,10 +989,10 @@ static void try_jump_to_restart(void)
 	if (TYPEOF(restart) == VECSXP && LENGTH(restart) > 1) {
 	    SEXP name = VECTOR_ELT(restart, 0);
 	    if (TYPEOF(name) == STRSXP && LENGTH(name) == 1) {
-		const char *cname = CHAR(STRING_ELT(name, 0));
-		if (! strcmp(cname, "browser") ||
-		    ! strcmp(cname, "tryRestart") ||
-		    ! strcmp(cname, "abort")) /**** move abort eventually? */
+		name = STRING_ELT(name, 0);
+		if (name == R_BrowserChar ||
+		    name == R_TryRestartChar ||
+		    name == R_AbortChar) /**** move abort eventually? */
 		    invokeRestart(restart, R_NilValue);
 	    }
 	}
@@ -1580,32 +1661,28 @@ static char * R_ConciseTraceback(SEXP call, int skip)
 
 
 
-static SEXP mkHandlerEntry(SEXP klass, SEXP parentenv, SEXP handler, SEXP rho,
-			   SEXP result, int calling)
+static SEXP mkHandlerEntry(SEXP klass, SEXP handler, SEXP rho, SEXP result)
 {
     SEXP entry = allocVector(VECSXP, 5);
     SET_VECTOR_ELT(entry, 0, klass);
-    SET_VECTOR_ELT(entry, 1, parentenv);
-    SET_VECTOR_ELT(entry, 2, handler);
-    SET_VECTOR_ELT(entry, 3, rho);
-    SET_VECTOR_ELT(entry, 4, result);
-    SETLEVELS(entry, calling);
+    SET_VECTOR_ELT(entry, 1, handler);
+    SET_VECTOR_ELT(entry, 2, rho);
+    SET_VECTOR_ELT(entry, 3, result);
+    if (rho == R_NilValue)
+	SETLEVELS(entry, 1);
     return entry;
 }
 
 /**** rename these??*/
 #define IS_CALLING_ENTRY(e) LEVELS(e)
 #define ENTRY_CLASS(e) VECTOR_ELT(e, 0)
-#define ENTRY_CALLING_ENVIR(e) VECTOR_ELT(e, 1)
-#define ENTRY_HANDLER(e) VECTOR_ELT(e, 2)
-#define ENTRY_TARGET_ENVIR(e) VECTOR_ELT(e, 3)
-#define ENTRY_RETURN_RESULT(e) VECTOR_ELT(e, 4)
+#define ENTRY_HANDLER(e) VECTOR_ELT(e, 1)
+#define ENTRY_TARGET_ENVIR(e) VECTOR_ELT(e, 2)
+#define ENTRY_RETURN_RESULT(e) VECTOR_ELT(e, 3)
 
-#define RESULT_SIZE 4
+#define RESULT_SIZE 3
 
-static SEXP R_HandlerResultToken = NULL;
-
-void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
+void attribute_hidden R_FixupExitingHandlerResult(SEXP value)
 {
     /* The internal error handling mechanism stores the error message
        in 'errbuf'.  If an on.exit() action is processed while jumping
@@ -1617,60 +1694,211 @@ void attribute_hidden R_FixupExitingHandlerResult(SEXP result)
        more favorable stack context than before the jump. The
        R_HandlerResultToken is used to make sure the result being
        modified is associated with jumping to an exiting handler. */
-    if (result != NULL &&
-	TYPEOF(result) == VECSXP &&
-	XLENGTH(result) == RESULT_SIZE &&
-	VECTOR_ELT(result, 0) == R_NilValue &&
-	VECTOR_ELT(result, RESULT_SIZE - 1) == R_HandlerResultToken) {
-	SET_VECTOR_ELT(result, 0, mkString(errbuf));
+    if (value && ATTRIB(value) == R_ExitingHandlerToken) {
+	SEXP result = CAR(value);
+	if (VECTOR_ELT(result, 0) == R_NilValue)
+	    SET_VECTOR_ELT(result, 0, mkString(errbuf));
     }
 }
 
-SEXP attribute_hidden do_addCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
+static SEXP makeHandlerStack(SEXP stack, int calling)
 {
-    SEXP classes, handlers, parentenv, target, oldstack, newstack, result;
-    int calling, i, n;
-    PROTECT_INDEX osi;
+    stack = PROTECT(cons(R_NilValue, shallow_duplicate(stack)));
 
-    if (R_HandlerResultToken == NULL) {
-	R_HandlerResultToken = allocVector(VECSXP, 1);
-	R_PreserveObject(R_HandlerResultToken);
+    SEXP prev = stack;
+    SEXP node = CDR(stack);
+    while (node != R_NilValue) {
+	SEXP entry = CAR(node);
+	int entry_calling = ENTRY_TARGET_ENVIR(entry) == R_NilValue;
+
+	/* Return whole stack if `calling` is negative, for debugging purposes. */
+	if (calling < 0 || calling == entry_calling) {
+	    SETCAR(node, ENTRY_HANDLER(entry));
+	    prev = node;
+	    node = CDR(node);
+	} else {
+	    node = CDR(node);
+	    SETCDR(prev, node);
+	}
     }
 
+    UNPROTECT(1);
+    return CDR(stack);
+}
+
+/* For debugging */
+void attribute_hidden printHandlerStack(RCNTXT *cntxt) {
+    cntxt = cntxt ? cntxt : R_GlobalContext;
+    Rf_PrintValue(makeHandlerStack(cntxt->handlerstack, -1));
+}
+
+static RCNTXT * findContextChild(RCNTXT *cntxt)
+{
+    RCNTXT *prev = R_GlobalContext;
+    RCNTXT *cptr = prev->nextcontext;
+
+    while (cptr != cntxt) {
+	if (!cptr)
+	    return NULL;
+	prev = cptr;
+	cptr = cptr->nextcontext;
+    }
+
+    return prev;
+}
+
+/* Update `handlerstack` references of all intervening contexts up to
+   `cptr` that still point to the old stack. This is necessary when
+   handlers have been added or removed higher up. */
+static void updateHandlerStacks(RCNTXT *cptr, SEXP oldstack)
+{
+    RCNTXT *cntxt = R_GlobalContext;
+    while (cntxt != cptr) {
+	if (cntxt->handlerstack == oldstack)
+	    cntxt->handlerstack = cptr->handlerstack;
+	cntxt = cntxt->nextcontext;
+    }
+}
+
+/* Remove all the global handlers for a given class. */
+static void delGlobalHandlers(RCNTXT *cptr, SEXP klass) {
+    Rboolean flush = klass == install("condition");
+
+    SEXP oldstack = cptr->handlerstack;
+
+    SEXP newstack = PROTECT(cons(R_NilValue, cptr->handlerstack));
+    SEXP prev = newstack;
+    SEXP node = CDR(prev);
+
+    while (node != R_NilValue) {
+	if (flush || TAG(node) == klass) {
+	    node = CDR(node);
+	    SETCDR(prev, node);
+	} else {
+	    prev = node;
+	    node = CDR(node);
+	}
+    }
+    cptr->handlerstack = CDR(newstack);
+    UNPROTECT(1);
+
+    /* If the top of the global portion of the handler stack is gone,
+       we need to (a) rechain the first child of the old top onto the
+       new top of the global stack, and (b) update references to the
+       old top in the child contexts. */
+    if (oldstack != cptr->handlerstack) {
+	SEXP node = R_HandlerStack;
+	while (node != R_NilValue) {
+	    SEXP next = CDR(node);
+	    if (next == oldstack) {
+		SETCDR(node, newstack);
+		break;
+	    }
+	    node = next;
+	}
+
+	updateHandlerStacks(cptr, oldstack);
+    }
+}
+
+static SEXP addHandlers(SEXP handlers, SEXP envir, Rboolean calling)
+{
+    Rboolean global = envir == R_GlobalEnv;
+
+    /* Find the child of the context in which handlers are added. The
+       new state of the stack will be recorded in its `handlerstack`
+       field. When the child is popped off the stack, the currently
+       active stack in `R_HandlerStack` will be restored to the new
+       state. See also the updating logic below to maintain the stack
+       references in a consistent state when there are intervening
+       frames (when global handlers are added or removed, and when
+       local handlers are added via a promise). */
+    RCNTXT *cptr;
+    if (global)
+	cptr = findContextChild(R_ToplevelContext);
+    else
+	cptr = findExecContextChild(R_GlobalContext, envir);
+
+    if (!cptr)
+	error(_("can't find environment to register condition handlers"));
+    SEXP oldstack = cptr->handlerstack;
+
+
+    if (handlers == R_NilValue) {
+	R_Visible = TRUE;
+	return makeHandlerStack(oldstack, calling);
+    }
+
+    SEXP target = calling ? R_NilValue : envir;
+    SEXP result = PROTECT(allocVector(VECSXP, RESULT_SIZE));
+    ATTRIB(result) = R_HandlerResultToken;
+
+    while (handlers != R_NilValue) {
+	SEXP klass = TAG(handlers);
+	if (klass == R_NilValue) {
+	    cptr->handlerstack = oldstack;
+	    error(_("condition handlers must be supplied with a class"));
+	}
+
+	SEXP handler = CAR(handlers);
+
+	if (handler == R_NilValue) {
+	    if (!global)
+		error(_("can't remove condition handlers inside functions"));
+	    delGlobalHandlers(cptr, klass);
+	} else {
+	    SEXP entry = mkHandlerEntry(PRINTNAME(klass), handler, target, result);
+	    cptr->handlerstack = cons(entry, cptr->handlerstack);
+	    SET_TAG(cptr->handlerstack, klass);
+	}
+
+	handlers = CDR(handlers);
+    }
+
+    /* Update intervening frames in case handlers were added higher up via a promise. */
+    updateHandlerStacks(cptr, oldstack);
+
+    if (global)
+	R_ToplevelContext->handlerstack = cptr->handlerstack;
+    if (cptr == R_GlobalContext)
+	R_HandlerStack = cptr->handlerstack;
+
+    UNPROTECT(1);
+    R_Visible = FALSE;
+    return R_NilValue;
+}
+
+SEXP attribute_hidden do_addCondHandsList(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
     checkArity(op, args);
 
-    classes = CAR(args); args = CDR(args);
-    handlers = CAR(args); args = CDR(args);
-    parentenv = CAR(args); args = CDR(args);
-    target = CAR(args); args = CDR(args);
-    calling = asLogical(CAR(args));
+    SEXP envir = CAR(args); args = CDR(args);
+    SEXP calling = CAR(args); args = CDR(args);
 
-    if (classes == R_NilValue || handlers == R_NilValue)
-	return R_HandlerStack;
+    if (envir == R_GlobalEnv && !PRIMVAL(op))
+	error(_("can't add local handlers in the global environment"));
 
-    if (TYPEOF(classes) != STRSXP || TYPEOF(handlers) != VECSXP ||
-	LENGTH(classes) != LENGTH(handlers))
-	error(_("bad handler data"));
+    SEXP handlers = PROTECT(listReverse(args));
+    SEXP old = addHandlers(handlers, envir, LOGICAL(calling)[0]);
 
-    n = LENGTH(handlers);
-    oldstack = R_HandlerStack;
+    UNPROTECT(1);
+    return old;
+}
+SEXP attribute_hidden do_addCondHand(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    checkArity(op, args);
 
-    PROTECT(result = allocVector(VECSXP, RESULT_SIZE));
-    SET_VECTOR_ELT(result, RESULT_SIZE - 1, R_HandlerResultToken);
-    PROTECT_WITH_INDEX(newstack = oldstack, &osi);
+    SEXP envir = CAR(args); args = CDR(args);
+    SEXP calling = CAR(args); args = CDR(args);
+    SEXP klass = CAR(args); args = CDR(args);
+    SEXP handler = CAR(args);
 
-    for (i = n - 1; i >= 0; i--) {
-	SEXP klass = STRING_ELT(classes, i);
-	SEXP handler = VECTOR_ELT(handlers, i);
-	SEXP entry = mkHandlerEntry(klass, parentenv, handler, target, result,
-				    calling);
-	REPROTECT(newstack = CONS(entry, newstack), osi);
-    }
+    SEXP handlers = PROTECT(list1(handler));
+    TAG(handlers) = klass;
+    SEXP old = addHandlers(handlers, envir, LOGICAL(calling)[0]);
 
-    R_HandlerStack = newstack;
-    UNPROTECT(2);
-
-    return oldstack;
+    UNPROTECT(1);
+    return old;
 }
 
 SEXP attribute_hidden do_resetCondHands(SEXP call, SEXP op, SEXP args, SEXP rho)
@@ -1684,10 +1912,10 @@ static SEXP findSimpleErrorHandler(void)
 {
     SEXP list;
     for (list = R_HandlerStack; list != R_NilValue; list = CDR(list)) {
-	SEXP entry = CAR(list);
-	if (! strcmp(CHAR(ENTRY_CLASS(entry)), "simpleError") ||
-	    ! strcmp(CHAR(ENTRY_CLASS(entry)), "error") ||
-	    ! strcmp(CHAR(ENTRY_CLASS(entry)), "condition"))
+	SEXP entry_class = ENTRY_CLASS(CAR(list));
+	if (entry_class == R_SimpleErrorChar ||
+	    entry_class == R_ErrorChar ||
+	    entry_class == R_ConditionChar)
 	    return list;
     }
     return R_NilValue;
@@ -1721,7 +1949,60 @@ static void NORET gotoExitingHandler(SEXP cond, SEXP call, SEXP entry)
     SET_VECTOR_ELT(result, 0, cond);
     SET_VECTOR_ELT(result, 1, call);
     SET_VECTOR_ELT(result, 2, ENTRY_HANDLER(entry));
-    findcontext(CTXT_FUNCTION, rho, result);
+
+    /* Store current handler stack with the handler, so it can be
+       restored during invokation. */
+    SEXP handlerData = PROTECT(cons(result, R_HandlerStack));
+    ATTRIB(handlerData) = R_ExitingHandlerToken;
+
+    findcontext(CTXT_FUNCTION, rho, handlerData);
+}
+
+static SEXP simpleError(SEXP msg, SEXP call)
+{
+    SEXP err = PROTECT(shallow_duplicate(R_SimpleErrorCondition));
+
+    SET_VECTOR_ELT(err, 0, msg);
+    SET_VECTOR_ELT(err, 1, call);
+
+    UNPROTECT(1);
+    return err;
+}
+
+SEXP attribute_hidden R_invokeExitingHandler(SEXP data)
+{
+    SEXP result = CAR(data);
+
+    /* Restore state of handler stack before the jump. The handler
+       being invoked has been popped off this stack. */
+    R_HandlerStack = CDR(data);
+
+    SEXP condition = VECTOR_ELT(result, 0);
+    SEXP call = VECTOR_ELT(result, 1);
+
+    switch (TYPEOF(condition)) {
+    case NILSXP: {
+	SEXP msg = PROTECT(mkString(errbuf));
+	condition = simpleError(msg, call);
+	UNPROTECT(1);
+	break;
+    }
+    case STRSXP:
+	condition = simpleError(condition, call);
+	break;
+    default:
+	break;
+    }
+    PROTECT(condition);
+
+    SEXP mask = PROTECT(NewEnvironment(R_NilValue, R_NilValue, R_GlobalEnv));
+    defineVar(R_ConditionSymbol, condition, mask);
+    defineVar(R_HandlerSymbol, VECTOR_ELT(result, 2), mask);
+
+    SEXP out = eval(R_InvokeExitingCall, mask);
+
+    UNPROTECT(2);
+    return out;
 }
 
 static void vsignalError(SEXP call, const char *format, va_list ap)
@@ -1779,10 +2060,9 @@ static SEXP findConditionHandler(SEXP cond)
 
     /**** need some changes here to allow conditions to be S4 classes */
     for (list = R_HandlerStack; list != R_NilValue; list = CDR(list)) {
-	SEXP entry = CAR(list);
+	SEXP entry_class = ENTRY_CLASS(CAR(list));
 	for (i = 0; i < LENGTH(classes); i++)
-	    if (! strcmp(CHAR(ENTRY_CLASS(entry)),
-			 CHAR(STRING_ELT(classes, i))))
+	    if (entry_class == STRING_ELT(classes, i))
 		return list;
     }
     return R_NilValue;
@@ -1829,9 +2109,9 @@ static SEXP findInterruptHandler(void)
 {
     SEXP list;
     for (list = R_HandlerStack; list != R_NilValue; list = CDR(list)) {
-	SEXP entry = CAR(list);
-	if (! strcmp(CHAR(ENTRY_CLASS(entry)), "interrupt") ||
-	    ! strcmp(CHAR(ENTRY_CLASS(entry)), "condition"))
+	SEXP entry_class = ENTRY_CLASS(CAR(list));
+	if (entry_class == R_InterruptChar ||
+	    entry_class == R_ConditionChar)
 	    return list;
     }
     return R_NilValue;
@@ -1843,8 +2123,8 @@ static SEXP getInterruptCondition(void)
     SEXP cond, klass;
     PROTECT(cond = allocVector(VECSXP, 0));
     PROTECT(klass = allocVector(STRSXP, 2));
-    SET_STRING_ELT(klass, 0, mkChar("interrupt"));
-    SET_STRING_ELT(klass, 1, mkChar("condition"));
+    SET_STRING_ELT(klass, 0, R_InterruptChar);
+    SET_STRING_ELT(klass, 1, R_ConditionChar);
     classgets(cond, klass);
     UNPROTECT(2);
     return cond;
@@ -1894,8 +2174,8 @@ R_InsertRestartHandlers(RCNTXT *cptr, const char *cname)
 
     /**** need more here to keep recursive errors in browser? */
     rho = cptr->cloenv;
-    PROTECT(klass = mkChar("error"));
-    entry = mkHandlerEntry(klass, rho, R_RestartToken, rho, R_NilValue, TRUE);
+    PROTECT(klass = R_ErrorChar);
+    entry = mkHandlerEntry(klass, R_RestartToken, R_NilValue, R_NilValue);
     R_HandlerStack = CONS(entry, R_HandlerStack);
     UNPROTECT(1);
     PROTECT(name = mkString(cname));
