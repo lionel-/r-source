@@ -69,7 +69,7 @@ tryCatch <- function(expr, ..., finally) {
     classes <- names(handlers)
     parentenv <- parent.frame()
     if (length(classes) != length(handlers))
-        stop("bad handler specification")
+        stop("condition handlers must be specified with a condition class")
     tryCatchList(expr, classes, parentenv, handlers)
 }
 
@@ -78,7 +78,7 @@ withCallingHandlers <- function(expr, ...) {
     classes <- names(handlers)
     parentenv <- parent.frame()
     if (length(classes) != length(handlers))
-        stop("bad handler specification")
+        stop("condition handlers must be specified with a condition class")
     .Internal(.addCondHands(classes, handlers, parentenv, NULL, TRUE))
     expr
 }
@@ -359,3 +359,52 @@ allowInterrupts <- function(expr) {
     else
         expr
 }
+
+# local() is not yet available when this is evaluated so we use a
+# throw-away closure instead
+globalCallingHandlers <-
+    (function() {
+	gh <- list()
+	function(...) {
+	    handlers <- list(...)
+
+	    # Unwrap list of handlers passed as single argument
+	    if (length(handlers) == 1 && is.list(handlers[[1]]))
+		handlers <- handlers[[1]]
+
+	    if (length(handlers) == 0)
+		return(gh)
+
+	    if (identical(handlers, list(NULL))) {
+		out <- gh
+		gh <<- list()
+	    } else {
+		classes <- names(handlers)
+		if (length(classes) != length(handlers))
+		    stop("condition handlers must be specified with a condition class")
+		if (!all(vapply(handlers, is.function, logical(1))))
+		    stop("condition handlers must be functions")
+		out <- NULL
+		gh <<- c(handlers, gh)
+	    }
+
+	    # Remove duplicate handlers within class. We do it here so
+	    # duplicates in `...` inputs are also removed. This
+	    # preserves the ordering of handlers. We keep only the
+	    # first duplicate on the stack, so that registering a
+	    # handler again has the effect of pushing it on top of the
+	    # stack.
+	    classes <- names(gh)
+	    for (class in unique(classes)) {
+		idx <- which(class == classes)
+		dups <- duplicated(gh[idx])
+		if (any(dups))
+		    gh <<- gh[-idx[dups]]
+	    }
+
+	    # Update the handler stack of the top-level context
+	    .Internal(.addGlobHands(names(gh), gh, .GlobalEnv, NULL, TRUE))
+
+	    invisible(out)
+	}
+    })()
