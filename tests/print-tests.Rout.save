@@ -597,7 +597,7 @@ attr(,"class")
 list()
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 > d
 [[1]]
@@ -620,7 +620,7 @@ attr(,"class")
 
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 
 
@@ -644,7 +644,7 @@ attr(,"class")
 list()
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 > print(d)
 [[1]]
@@ -667,7 +667,7 @@ attr(,"class")
 
 attr(,"attr")
 stop("should not be evaluated")
-attr(,"class")
+attr(,"attr")attr(,"class")
 [1] "foo"
 
 
@@ -825,7 +825,7 @@ dispatched
 > 
 > 
 > ## User-supplied arguments are forwarded on print-dispatch
-> print.foo <- function(x, other = FALSE, digits = 0L, ...) {
+> print.foo <- function(x, other = FALSE, digits = 0L, ..., indexTag = "") {
 +     cat("digits: ", digits, "\n")
 +     stopifnot(other, digits == 4, !...length())
 + }
@@ -943,4 +943,84 @@ NULL
 > 
 > ## Cleanup
 > rm(print.foo, obj, a, b, c, d, o)
+> 
+> 
+> ## Indexing tags for recursive data structures can be supplied by user
+> print(list(list(1)), indexTag = "$foo[[100]]")
+$foo[[100]][[1]]
+$foo[[100]][[1]][[1]]
+[1] 1
+
+
+> 
+> ## Indexing tags are forwarded when recursing via R level print()
+> x <- structure(list(list(1), 2), class = "foobar")
+> list(list(x))
+[[1]]
+[[1]][[1]]
+[[1]][[1]][[1]]
+[[1]][[1]][[1]][[1]]
+[1] 1
+
+
+[[1]][[1]][[2]]
+[1] 2
+
+attr(,"class")
+[1] "foobar"
+
+
+> print(list(list(x)))
+[[1]]
+[[1]][[1]]
+[[1]][[1]][[1]]
+[[1]][[1]][[1]][[1]]
+[1] 1
+
+
+[[1]][[1]][[2]]
+[1] 2
+
+attr(,"class")
+[1] "foobar"
+
+
+> ##
+> x <- structure(NA, foo = structure(structure(list(1, 2), class = "foobar"), bar = 1))
+> list(list(x))
+[[1]]
+[[1]][[1]]
+[1] NA
+attr(,"foo")
+attr(,"foo")[[1]]
+[1] 1
+
+attr(,"foo")[[2]]
+[1] 2
+
+attr(,"foo")attr(,"class")
+[1] "foobar"
+attr(,"foo")attr(,"bar")
+[1] 1
+
+
+> print(list(list(x)))
+[[1]]
+[[1]][[1]]
+[1] NA
+attr(,"foo")
+attr(,"foo")[[1]]
+[1] 1
+
+attr(,"foo")[[2]]
+[1] 2
+
+attr(,"foo")attr(,"class")
+[1] "foobar"
+attr(,"foo")attr(,"bar")
+[1] 1
+
+
+> ##
+> rm(x)
 > 

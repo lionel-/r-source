@@ -190,11 +190,14 @@ function(f = sys.function(-1), doStop = FALSE)
     r
 }
 
-print.DLLInfo <- function(x, ...)
+print.DLLInfo <- function(x, ..., file = "", append = FALSE, useBytes = FALSE,
+			  indent = 0.1 * getOption("width"),
+			  width = 0.9 * getOption("width"), keep.white = NULL)
 {
     tmp <- as.data.frame.list(x[c("name", "path", "dynamicLookup")])
     names(tmp) <- c("DLL name", "Filename", "Dynamic lookup")
-    write.dcf(tmp, ...)
+    write.dcf(tmp, file = file, append = append, useBytes = useBytes,
+	      indent = indent, width = width, keep.white = keep.white)
     invisible(x)
 }
 

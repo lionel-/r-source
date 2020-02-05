@@ -21,7 +21,7 @@ print <- function(x, ...) UseMethod("print")
 ##- Need '...' such that it can be called as  NextMethod("print", ...):
 print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
                           print.gap = NULL, right = FALSE, max = NULL,
-                          useSource = TRUE, ...)
+			  useSource = TRUE, indexTag = "", ...)
 {
     # Arguments are wrapped in another pairlist because we need to
     # forward them to recursive print() calls.
@@ -43,7 +43,10 @@ print.default <- function(x, digits = NULL, quote = TRUE, na.print = NULL,
 		  missing(print.gap), missing(right), missing(max),
 		  missing(useSource))
 
-    .Internal(print.default(x, args, missings))
+    isString <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
+    stopifnot(isString(indexTag))
+
+    .Internal(print.default(x, indexTag, args, missings))
 }
 
 prmatrix <-
@@ -119,10 +122,12 @@ print.function <- function(x, useSource = TRUE, ...)
     print.default(x, useSource=useSource, ...)
 
 ## used for getenv()
-print.Dlist <- function(x, ...)
+print.Dlist <- function(x, ..., style = c("table", "list"),
+			width = 0.9 * getOption("width"),
+			indent = NULL)
 {
     if(!is.list(x) && !is.matrix(x) && is.null(names(x))) ## messed up Dlist
 	return(NextMethod())
-    cat(formatDL(x, ...), sep="\n")
+    cat(formatDL(x, style = style, width = width, indent = indent), sep="\n")
     invisible(x)
 }

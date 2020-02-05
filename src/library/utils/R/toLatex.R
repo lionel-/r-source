@@ -20,8 +20,9 @@ toBibtex <- function(object, ...) UseMethod("toBibtex")
 
 toLatex <- function(object, ...) UseMethod("toLatex")
 
-print.Bibtex <- print.Latex <- function(x, prefix = "", ...)
+print.Bibtex <- print.Latex <- function(x, prefix = "", ..., con = stdout(),
+					sep = "\n", useBytes = FALSE)
 {
-    writeLines(paste0(prefix, unclass(x)), ...)
+    writeLines(paste0(prefix, unclass(x)), con = con, sep = sep, useBytes = useBytes)
     invisible(x)
 }
