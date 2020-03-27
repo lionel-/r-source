@@ -973,3 +973,10 @@ body(cd@contains[["A"]]@coerce)[[2]] ## >>   value <- new("A")
 ## was ... <-  new(structure("A", package = ".GlobalEnv"))
 ## for a few days in R-devel (Nov.2017)
 
+
+## Error messages occurring during method selection are forwarded
+f <- function(x) x
+setGeneric("f")
+setMethod("f", signature("NULL"), function(x) NULL)
+err <- tryCatch(f(stop("this is mentioned")), error = identity)
+stopifnot(identical(err$message, "error in evaluating the argument 'x' in selecting a method for function 'f': this is mentioned"))
