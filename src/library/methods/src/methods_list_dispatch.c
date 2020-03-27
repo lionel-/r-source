@@ -73,7 +73,6 @@ static const char *check_symbol_or_string(SEXP obj, Rboolean nonEmpty,
                                           const char *what);
 static const char *class_string(SEXP obj);
 
-
 typedef struct {
     SEXP e;
     SEXP env;
@@ -85,25 +84,37 @@ static SEXP evalWrapper(void *data_)
     return eval(data->e, data->env);
 }
 
-/* Like R_tryCatchError but evaluates an R expression instead of a C callback */
-static SEXP R_evalCatchError(SEXP e, SEXP env,
-			     SEXP (*handler)(SEXP, void *), void *hdata)
+/* Like R_withCallingErrorHandler but evaluates an R expression
+   instead of a C callback */
+static SEXP R_evalHandleError(SEXP e, SEXP env,
+			      SEXP (*handler)(SEXP, void *), void *hdata)
 {
     R_evalWrapper_t data = { .e = e, .env = env };
-    return R_tryCatchError(&evalWrapper, &data, handler, hdata);
+    return R_withCallingErrorHandler(&evalWrapper, &data, handler, hdata);
 }
 
-static SEXP R_evalCatchErrorProtect(SEXP e, SEXP env,
-				    SEXP (*handler)(SEXP, void *), void *hdata,
-				    void (*finally)(void *), void *fdata)
+typedef struct {
+    SEXP e;
+    SEXP env;
+    void (*finally)(void *);
+    void *fdata;
+} R_evalWrapperCleanup_t;
+
+static SEXP evalWrapperCleanup(void *data_)
 {
-    SEXP cond = PROTECT(Rf_mkString("error"));
+    R_evalWrapperCleanup_t *data = (R_evalWrapperCleanup_t *) data_;
+    return R_ExecWithCleanup(&evalWrapper, data, data->finally, data->fdata);
+}
 
-    R_evalWrapper_t data = { .e = e, .env = env };
-    SEXP val = R_tryCatch(&evalWrapper, &data, cond, handler, hdata, finally, fdata);
+static SEXP R_evalHandleErrorProtect(SEXP e, SEXP env,
+				     SEXP (*handler)(SEXP, void *), void *hdata,
+				     void (*finally)(void *), void *fdata)
+{
+    R_evalWrapperCleanup_t data = { .e = e, .env = env,
+				    .finally = finally, .fdata = fdata};
 
-    UNPROTECT(1);
-    return val;
+    return R_withCallingErrorHandler(&evalWrapperCleanup, &data,
+				     handler, hdata);
 }
 
 /* The result might need to be protected as the message might be
@@ -385,13 +396,12 @@ SEXP R_quick_dispatch(SEXP args, SEXP genericEnv, SEXP fdef)
 
 /* call some S language functions */
 
-
 static SEXP R_S_MethodsListSelectCleanup(SEXP err, void *data)
 {
     SEXP fname = (SEXP) data;
-    error("S language method selection did not return normally when called from internal dispatch for function '%s'",
+    error(_("S language method selection did not return normally when called from internal dispatch for function '%s'"),
 	  check_symbol_or_string(fname, TRUE,
-				 "Function name for method selection called internally"));
+				 _("Function name for method selection called internally")));
     return R_NilValue;
 }
 
@@ -411,7 +421,8 @@ static SEXP R_S_MethodsListSelect(SEXP fname, SEXP ev, SEXP mlist, SEXP f_env)
 	    val = CDR(val);
 	    SETCAR(val, f_env);
     }
-    val = R_evalCatchError(e, Methods_Namespace, &R_S_MethodsListSelectCleanup, fname);
+    val = R_evalHandleError(e, Methods_Namespace, &R_S_MethodsListSelectCleanup,
+			    fname);
     UNPROTECT(1);
     return val;
 }
@@ -618,7 +629,6 @@ SEXP R_selectMethod(SEXP fname, SEXP ev, SEXP mlist, SEXP evalArgs)
     return do_dispatch(fname, ev, mlist, TRUE, asLogical(evalArgs));
 }
 
-
 typedef struct {
     SEXP fname;
     SEXP arg_sym;
@@ -671,7 +681,9 @@ static SEXP do_dispatch(SEXP fname, SEXP ev, SEXP mlist, int firstTry,
 	else {
 	    /*  get its class */
 	    SEXP arg, class_obj;
-	    PROTECT(arg = R_evalCatchError(arg_sym, ev, &argEvalCleanup, &cleandata)); nprotect++;
+	    PROTECT(arg = R_evalHandleError(arg_sym, ev,
+					    &argEvalCleanup, &cleandata));
+	    nprotect++;
 	    PROTECT(class_obj = R_data_class(arg, TRUE)); nprotect++;
 	    class = CHAR(STRING_ELT(class_obj, 0));
 	}
@@ -679,7 +691,9 @@ static SEXP do_dispatch(SEXP fname, SEXP ev, SEXP mlist, int firstTry,
     else {
 	/* the arg contains the class as a string */
 	SEXP arg;
-	PROTECT(arg = R_evalCatchError(arg_sym, ev, &argEvalCleanup, &cleandata)); nprotect++;
+	PROTECT(arg = R_evalHandleError(arg_sym, ev, &argEvalCleanup,
+				        &cleandata));
+	nprotect++;
 	class = CHAR(asChar(arg));
     }
     method = R_find_method(mlist, class, fname);
@@ -773,9 +787,9 @@ SEXP R_nextMethodCall(SEXP matched_call, SEXP ev)
 	args = CDR(args);
     }
     if(prim_case)
-	val = R_evalCatchErrorProtect(e, ev,
-				      &R_nextMethodCallCleanup, NULL,
-				      &R_nextMethodCallFinally, op);
+	val = R_evalHandleErrorProtect(e, ev,
+				       &R_nextMethodCallCleanup, NULL,
+				       &R_nextMethodCallFinally, op);
     else
 	val = eval(e, ev);
     UNPROTECT(2);
@@ -996,7 +1010,7 @@ static SEXP dots_class(SEXP ev, void *cleandata)
 	SETCAR(ee, R_dots);
 	UNPROTECT(1);
     }
-    return R_evalCatchError(call, ev, &argEvalCleanup, cleandata);
+    return R_evalHandleError(call, ev, &argEvalCleanup, cleandata);
 }
 
 static SEXP do_mtable(SEXP fdef, SEXP ev)
@@ -1072,7 +1086,9 @@ SEXP R_dispatchGeneric(SEXP fname, SEXP ev, SEXP fdef)
 	    if(arg_sym == R_dots)
 		thisClass = dots_class(ev, &cleandata);
 	    else {
-		SEXP arg = PROTECT(R_evalCatchError(arg_sym, ev, &argEvalCleanup, &cleandata));
+		SEXP arg = PROTECT(R_evalHandleError(arg_sym, ev,
+						     &argEvalCleanup,
+						     &cleandata));
 		thisClass = R_data_class(arg, TRUE);
 		UNPROTECT(1); /* arg */
 	    }
