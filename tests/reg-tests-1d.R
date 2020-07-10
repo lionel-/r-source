@@ -3106,6 +3106,18 @@ tools::assertError(options(warn = 1+.Machine$integer.max))
 ## "worked" and gave problems later in R <= 3.6.1
 
 
+## Can selectively suppress warnings
+w <- function(class) {
+    w <- simpleWarning("warned")
+    w <- structure(w, class = c(class, class(w)))
+    warning(w)
+}
+catch <- function(expr) tryCatch({ expr; FALSE }, warning = function(...) TRUE)
+stopifnot(!catch(suppressWarnings(w("foo"))))
+stopifnot(!catch(suppressWarnings(w("foo"), classes = c("bar", "foo"))))
+stopifnot(catch(suppressWarnings(w("foo"), classes = c("bar", "baz"))))
+rm(w, catch)
+
 
 ## keep at end
 rbind(last =  proc.time() - .pt,

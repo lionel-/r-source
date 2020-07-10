@@ -103,6 +103,9 @@
       \item Added an argument \code{add_datalist(*, small.size = 0)} to
       allow the creation of a \file{data/datalist} file even when the
       total size of the data sets is small.
+
+      \item New \code{classes} argument for \code{suppressWarnings()} to
+      selectively suppress warnings that inherit from particular classes.
     }
   }
 

@@ -83,10 +83,11 @@ withCallingHandlers <- function(expr, ...) {
     expr
 }
 
-suppressWarnings <- function(expr) {
+suppressWarnings <- function(expr, classes = "warning") {
     withCallingHandlers(expr,
-                        warning=function(w)
-                            invokeRestart("muffleWarning"))
+                        warning = function(w)
+			    if (inherits(w, classes))
+				invokeRestart("muffleWarning"))
 }
 
 
