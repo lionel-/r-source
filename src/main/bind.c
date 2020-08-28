@@ -770,6 +770,11 @@ SEXP attribute_hidden do_c(SEXP call, SEXP op, SEXP args, SEXP env)
 
     checkArity(op, args);
 
+    /* Remove any null elements before dispatch. This way they never
+       interfere in the concatenation no matter how the method is
+       implemented. */
+    args = R_listCompact(args);
+
     /* Attempt method dispatch. */
 
     /* DispatchOrEval internal generic: c */

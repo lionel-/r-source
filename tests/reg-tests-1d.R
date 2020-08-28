@@ -4169,6 +4169,16 @@ if (l10n_info()$"UTF-8") {
     }
 }
 
+## c() generic removes all NULL elements before dispatch
+c.foobar <- function(...) list("ok", ...)
+foobar <- structure(list(), class = "foobar")
+stopifnot(
+    identical(c(a = foobar), list("ok", a = foobar)),
+    identical(c(a = NULL, b = foobar), list("ok", b = foobar)),
+    identical(c(a = foobar, b = NULL), list("ok", a = foobar)),
+    identical(c(a = NULL, b = foobar, c = NULL), list("ok", b = foobar))
+)
+
 
 ## keep at end
 rbind(last =  proc.time() - .pt,

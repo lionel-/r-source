@@ -518,6 +518,24 @@ SEXP nthcdr(SEXP s, int n)
     return R_NilValue;/* for -Wall */
 }
 
+/* Destructively removes R_NilValue elements from a pairlist. As long
+   as `s` is protected the result does not need to be protected. */
+SEXP R_listCompact(SEXP s) {
+    SEXP handle = PROTECT(Rf_cons(R_NilValue, s));
+
+    SEXP prev = handle;
+    while (s != R_NilValue) {
+	if (CAR(s) == R_NilValue)
+	    SETCDR(prev, CDR(s));
+	else
+	    prev = s;
+	s = CDR(s);
+    }
+
+    UNPROTECT(1);
+    return CDR(handle);
+}
+
 
 /* This is a primitive (with no arguments) */
 SEXP attribute_hidden do_nargs(SEXP call, SEXP op, SEXP args, SEXP rho)

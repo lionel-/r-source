@@ -88,7 +88,11 @@
       which prioritized file names over topics can be restored by
       setting the environment variable \env{_R_HELP_LINKS_TO_TOPICS_} to
       a false value.
-  
+ 
+      \item \code{c()} now removes \code{NULL} arguments before
+      dispatching to methods. This guarantees that these do not
+      interfere with concatenation and simplifies the implementation of
+      \code{c()} methods.
     }
 
   }
