@@ -186,6 +186,8 @@ FUNTAB R_FunTab[] =
 /* does not evaluate */
 {"~",		do_tilde,	0,	0,	-1,	{PP_BINARY,  PREC_TILDE,  0}},
 
+{"::",		do_ns,		1,	200,	2,	{PP_BINARY2, PREC_NS,	  0}},
+{":::",		do_ns,		2,	200,	2,	{PP_BINARY2, PREC_NS,	  0}},
 
 /* Logic Related Functions */
 /* these are group generic and so need to eval args */

@@ -287,6 +287,7 @@ SEXP do_newenv(SEXP,SEXP,SEXP,SEXP);
 SEXP do_nextmethod(SEXP,SEXP,SEXP,SEXP);
 SEXP do_ngettext(SEXP, SEXP, SEXP, SEXP);
 SEXP do_normalizepath(SEXP, SEXP, SEXP, SEXP);
+SEXP do_ns(SEXP, SEXP, SEXP, SEXP);
 SEXP do_nzchar(SEXP,SEXP,SEXP,SEXP);
 SEXP do_onexit(SEXP, SEXP, SEXP, SEXP);
 SEXP do_options(SEXP, SEXP, SEXP, SEXP);

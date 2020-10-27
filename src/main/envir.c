@@ -3712,7 +3712,7 @@ SEXP R_FindNamespace(SEXP info)
     return val;
 }
 
-static SEXP checkNSname(SEXP call, SEXP name)
+static SEXP checkNSname(SEXP call, SEXP name, int ns)
 {
     switch (TYPEOF(name)) {
     case SYMSXP:
@@ -3724,7 +3724,10 @@ static SEXP checkNSname(SEXP call, SEXP name)
 	}
 	/* else fall through */
     default:
-	errorcall(call, _("bad namespace name"));
+	if (ns)
+	    errorcall(call, _("bad namespace name"));
+	else
+	    errorcall(call, _("bad object name"));
     }
     return name;
 }
@@ -3733,7 +3736,7 @@ SEXP attribute_hidden do_regNS(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
     SEXP name, val;
     checkArity(op, args);
-    name = checkNSname(call, CAR(args));
+    name = checkNSname(call, CAR(args), 1);
     val = CADR(args);
     if (findVarInFrame(R_NamespaceRegistry, name) != R_UnboundValue)
 	errorcall(call, _("namespace already registered"));
@@ -3746,7 +3749,7 @@ SEXP attribute_hidden do_unregNS(SEXP call, SEXP op, SEXP args, SEXP rho)
     SEXP name;
     int hashcode;
     checkArity(op, args);
-    name = checkNSname(call, CAR(args));
+    name = checkNSname(call, CAR(args), 1);
     if (findVarInFrame(R_NamespaceRegistry, name) == R_UnboundValue)
 	errorcall(call, _("namespace not registered"));
     if( !HASHASH(PRINTNAME(name)))
@@ -3761,7 +3764,7 @@ SEXP attribute_hidden do_getRegNS(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
     SEXP name, val;
     checkArity(op, args);
-    name = checkNSname(call, PROTECT(coerceVector(CAR(args), SYMSXP)));
+    name = checkNSname(call, PROTECT(coerceVector(CAR(args), SYMSXP)), 1);
     UNPROTECT(1);
     val = findVarInFrame(R_NamespaceRegistry, name);
 
@@ -3783,6 +3786,88 @@ SEXP attribute_hidden do_getNSRegistry(SEXP call, SEXP op, SEXP args, SEXP rho)
 {
     checkArity(op, args);
     return R_NamespaceRegistry;
+}
+
+static SEXP loadNS(SEXP ns, SEXP call)
+{
+    SEXP nsString = PROTECT(Rf_ScalarString(PRINTNAME(ns)));
+    SEXP loadCall = PROTECT(Rf_lang2(Rf_install("loadNamespace"), nsString));
+
+    ns = Rf_eval(loadCall, R_BaseNamespace);
+
+    if (TYPEOF(ns) != ENVSXP)
+	errorcall(call, _("expected environment"));
+
+    UNPROTECT(2);
+    return ns;
+}
+
+static SEXP getVarInFrame0(SEXP envir, SEXP sym)
+{
+    SEXP out = findVarInFrame(envir, sym);
+
+    if (out == R_UnboundValue) {
+	// Trigger 'not found' error
+	eval(sym, R_EmptyEnv);
+	error("unexpected state in getVarInFrame0");
+    }
+
+    if (TYPEOF(out) == PROMSXP)
+	out = eval(out, R_EmptyEnv);
+
+    return out;
+}
+
+// NOTE: Both "::" and ":::" must signal an error for non existing objects
+SEXP attribute_hidden do_ns(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    SEXP lhs = CAR(args); args = CDR(args);
+    SEXP rhs = CAR(args); args = CDR(args);
+
+    if (args != R_NilValue)
+	errorcall(call, _("namespace operators need two arguments"));
+
+    lhs = PROTECT(checkNSname(call, lhs, 1));
+    rhs = PROTECT(checkNSname(call, rhs, 0));
+
+    SEXP ns = findVarInFrame(R_NamespaceRegistry, lhs);
+    if (ns == R_UnboundValue)
+	ns = loadNS(lhs, call);
+    PROTECT(ns);
+
+    if (ns == R_BaseNamespace || PRIMVAL(op) == 2) {
+	SEXP out = getVarInFrame0(ns, rhs);
+	UNPROTECT(3);
+	return out;
+    }
+
+    SEXP info = PROTECT(getVarInFrame0(ns, R_NamespaceSymbol));
+
+    SEXP exports = PROTECT(getVarInFrame0(info, Rf_install("exports")));
+    SEXP exportName = PROTECT(findVarInFrame(exports, rhs));
+    if (exportName != R_UnboundValue) {
+	exportName = checkNSname(call, exportName, 0);
+	SEXP out = eval(exportName, ns);
+	UNPROTECT(6);
+	return out;
+    }
+    UNPROTECT(2);
+
+    // <pkg> :: <dataset>  for lazydata :
+    SEXP ld = PROTECT(getVarInFrame0(info, Rf_install("lazydata")));
+    SEXP out = PROTECT(findVarInFrame(ld, rhs));
+
+    if (out == R_UnboundValue)
+	errorcall(call,
+		  _("'%s' is not an exported object from 'namespace:%s'"),
+		  CHAR(PRINTNAME(rhs)),
+		  CHAR(PRINTNAME(lhs)));
+
+    if (TYPEOF(out) == PROMSXP)
+	out = eval(out, R_EmptyEnv);
+
+    UNPROTECT(6);
+    return out;
 }
 
 SEXP attribute_hidden do_importIntoEnv(SEXP call, SEXP op, SEXP args, SEXP rho)
