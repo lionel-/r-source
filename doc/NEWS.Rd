@@ -120,6 +120,10 @@
       the denominator of the relative offset convergence test for cases where
       the fit of a model is expected to be exact, thanks to a proposal by
       John Nash.
+
+      \item \code{bquote()} can now splice expression vectors with
+      attributes. This makes it possible to splice the result of
+      \code{parse(keep.source = TRUE)}.
     }
   }
 
