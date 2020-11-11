@@ -183,6 +183,7 @@ SEXP do_formatPOSIXlt(SEXP, SEXP, SEXP, SEXP);
 SEXP do_formals(SEXP, SEXP, SEXP, SEXP);
 SEXP do_function(SEXP, SEXP, SEXP, SEXP);
 SEXP do_gc(SEXP, SEXP, SEXP, SEXP);
+SEXP do_gc_roots(SEXP, SEXP, SEXP, SEXP);
 SEXP do_gcinfo(SEXP, SEXP, SEXP, SEXP);
 SEXP do_gctime(SEXP, SEXP, SEXP, SEXP);
 SEXP do_gctorture(SEXP, SEXP, SEXP, SEXP);

@@ -4624,3 +4624,32 @@ R_len_t NORET R_BadLongVector(SEXP x, const char *file, int line)
     error(_("long vectors not supported yet: %s:%d"), file, line);
 }
 #endif
+
+/* For debugging reference leaks */
+attribute_hidden
+SEXP do_gc_roots(SEXP call, SEXP op, SEXP args, SEXP env) {
+    SEXP out = PROTECT(allocVector(VECSXP, 8));
+    SET_VECTOR_ELT(out, 0, R_CurrentExpression);
+    SET_VECTOR_ELT(out, 1, R_BaseNamespace); // Includes global env
+    SET_VECTOR_ELT(out, 2, R_Warnings);
+    SET_VECTOR_ELT(out, 3, R_ReturnedValue);
+    SET_VECTOR_ELT(out, 4, R_HandlerStack);
+    SET_VECTOR_ELT(out, 5, R_RestartStack);
+    SET_VECTOR_ELT(out, 6, R_PreciousList);
+    SET_VECTOR_ELT(out, 7, R_VStack);
+
+    SEXP out_names = PROTECT(allocVector(STRSXP, 8));
+    SET_STRING_ELT(out_names, 0, mkChar("R_currentExpression"));
+    SET_STRING_ELT(out_names, 1, mkChar("R_BaseNamespace"));
+    SET_STRING_ELT(out_names, 2, mkChar("R_Warnings"));
+    SET_STRING_ELT(out_names, 3, mkChar("R_ReturnedValue"));
+    SET_STRING_ELT(out_names, 4, mkChar("R_HandlerStack"));
+    SET_STRING_ELT(out_names, 5, mkChar("R_RestartStack"));
+    SET_STRING_ELT(out_names, 6, mkChar("R_PreciousList"));
+    SET_STRING_ELT(out_names, 7, mkChar("R_VStack"));
+
+    setAttrib(out, R_NamesSymbol, out_names);
+
+    UNPROTECT(2);
+    return out;
+}
