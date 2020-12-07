@@ -19,12 +19,12 @@
 Rprof <- function(filename = "Rprof.out", append = FALSE, interval =  0.02,
                   memory.profiling = FALSE, gc.profiling = FALSE,
                   line.profiling = FALSE, filter.callframes = FALSE,
-                  numfiles = 100L, bufsize = 10000L)
+		  real.time = NULL, numfiles = 100L, bufsize = 10000L)
 {
     if(is.null(filename)) filename <- ""
     invisible(.External(C_Rprof, filename, append, interval, memory.profiling,
                         gc.profiling, line.profiling, filter.callframes,
-                        numfiles, bufsize))
+			real.time, numfiles, bufsize))
 }
 
 Rprofmem <- function(filename = "Rprofmem.out", append = FALSE, threshold = 0)

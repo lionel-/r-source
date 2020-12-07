@@ -80,7 +80,7 @@ static const R_ExternalMethodDef ExtEntries[] = {
     EXTDEF(download, 6),
 #endif
     EXTDEF(unzip, 7),
-    EXTDEF(Rprof, 9),
+    EXTDEF(Rprof, 10),
     EXTDEF(Rprofmem, 3),
 
     EXTDEF(countfields, 6),

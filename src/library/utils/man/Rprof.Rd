@@ -31,6 +31,13 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   \item{line.profiling}{logical:  write line locations to the file?}
   \item{filter.callframes}{logical: filter out intervening call frames
     of the call tree. See the filtering out call frames section.}
+  \item{real.time}{logical: whether to sample call stacks using real
+    time (also known as wall-clock time or elapsed time) or CPU time.
+    If your application is I/O bound, i.e. if it spends a lot of time
+    waiting for downloads, timers, or other similar operations to
+    complete, set \code{real.time} to `TRUE`. If \code{NULL}, the
+    default, the type of time interval is selected as a function of the
+    platform. See details.}
   \item{numfiles, bufsize}{integers: line profiling memory allocation}
 }
 \details{
@@ -43,21 +50,29 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   process the output file to produce a summary of the usage; use
   \command{R CMD Rprof --help} for usage information.
 
-  How time is measured varies by platform:
+  There are two possible ways of determining what a time interval means:
+  real time and CPU time. Real time is the most intuitive, it is based
+  on the wall clock time. CPU time is time where the R process is
+  actively computing something. CPU time is stopped when the R process
+  is waiting for input (e.g. with \code{\link{readline}}), a timer
+  (e.g. with \code{\link{Sys.sleep}}) or for a file transfer to
+  complete.
+
+  How time is measured is controlled by the \code{real.time} argument.
+  Its default varies by platform:
    \describe{
      \item{On Windows:}{
-  Exactly what the time interval measures is subtle: it is time that the
-  \R process is running and executing an \R command.  It is not however just
-  CPU time, for if \code{readline()} is waiting for input, that counts
-  (on Windows, but not on a Unix-alike).
+  The default is to use real time and it is not possible to sample CPU
+  time on that platform.
 
   Note that the timing interval cannot be too small, for the time spent
   in each profiling step is added to the interval.  What is feasible is
   machine-dependent, but 10ms seemed as small as advisable on a 1GHz machine.
     }
-    \item{On Unix-alikes}{it is the CPU
-  time of the \R process, so for example excludes time when \R is waiting
-  for input or for processes run by \code{\link{system}} to return.
+    \item{On Unix-alikes}{
+  The default is to use the CPU time of the \R process, so for example
+  excludes time when \R is waiting for input or for processes run by
+  \code{\link{system}} to return.
 
   Note that the timing interval cannot usefully be too small: once the
   timer goes off, the information is not recorded until the next timing
