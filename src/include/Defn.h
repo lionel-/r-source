@@ -106,6 +106,10 @@ extern0 SEXP    R_dot_GenericDefEnv;  /* ".GenericDefEnv" */
 
 extern0 SEXP	R_StringHash;       /* Global hash of CHARSXPs */
 
+extern0 SEXP    R_loadNamespaceSymbol;     /* "loadNamespace" */
+extern0 SEXP    R_exportsSymbol;           /* "exports" */
+extern0 SEXP    R_lazydataSymbol;          /* "lazydata" */
+extern0 SEXP    R_getNamespaceNameSymbol;  /* "getNamespaceName" */
 
  /* writable char access for R internal use only */
 #define CHAR_RW(x)	((char *) CHAR(x))
@@ -1171,6 +1175,7 @@ SEXP dispatch_subset2(SEXP, R_xlen_t, SEXP, SEXP);
 SEXP duplicated(SEXP, Rboolean);
 R_xlen_t any_duplicated(SEXP, Rboolean);
 R_xlen_t any_duplicated3(SEXP, SEXP, Rboolean);
+Rboolean existsVarInFrame(SEXP, SEXP);
 SEXP evalList(SEXP, SEXP, SEXP, int);
 SEXP evalListKeepMissing(SEXP, SEXP);
 int factorsConform(SEXP, SEXP);
@@ -1257,6 +1262,8 @@ SEXP R_data_class(SEXP , Rboolean);
 SEXP R_data_class2(SEXP);
 char *R_LibraryFileName(const char *, char *, size_t);
 SEXP R_LoadFromFile(FILE*, int);
+const char* R_NamespaceEnvName(SEXP);
+SEXP R_NamespaceEnvExports(SEXP);
 SEXP R_NewHashedEnv(SEXP, SEXP);
 extern int R_Newhashpjw(const char *);
 FILE* R_OpenLibraryFile(const char *);

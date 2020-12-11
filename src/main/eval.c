@@ -105,6 +105,7 @@ static size_t R_Srcfile_bufcount;                  /* how big is the array above
 static SEXP R_Srcfiles_buffer = NULL;              /* a big RAWSXP to use as a buffer for filenames and pointers to them */
 static int R_Profiling_Error;		   /* record errors here */
 static int R_Filter_Callframes = 0;	      	   /* whether to record only the trailing branch of call trees */
+static int R_Include_Namespace = 0;		   /* whether to include namespace of package functions */
 
 #ifdef Win32
 HANDLE MainThread;
@@ -215,6 +216,40 @@ static RCNTXT * findProfContext(RCNTXT *cptr)
     return cptr;
 }
 
+static void contextNamespaceInfo(RCNTXT *cptr,
+				 SEXP funSym,
+				 const char **name,
+				 Rboolean *exported)
+{
+    *name = NULL;
+    *exported = FALSE;
+
+    SEXP funClo = cptr->callfun;
+    if (TYPEOF(funClo) != CLOSXP) {
+	*name = "base";
+	*exported = TRUE;
+	return;
+    }
+
+    SEXP env = CLOENV(funClo);
+    *name = R_NamespaceEnvName(env);
+
+    if (*name != NULL) {
+	if (env == R_BaseNamespace) {
+	    *exported = TRUE;
+	} else {
+	    SEXP exports = PROTECT(R_NamespaceEnvExports(env));
+
+	    /* Use `exists` variant of `findVarInFrame3()` to avoid
+	       executing active bindings from a signal handler. */
+	    if (exports != R_NilValue)
+		*exported = existsVarInFrame(exports, funSym);
+
+	    UNPROTECT(1);
+	}
+    }
+}
+
 static void doprof(int sig)  /* sig is ignored in Windows */
 {
     char buf[PROFBUFSIZ];
@@ -261,8 +296,19 @@ static void doprof(int sig)  /* sig is ignored in Windows */
 		char itembuf[PROFITEMMAX];
 
 		if (TYPEOF(fun) == SYMSXP) {
-		    snprintf(itembuf, PROFITEMMAX-1, "%s", CHAR(PRINTNAME(fun)));
+		    const char *namespace = NULL;
+		    Rboolean exported = FALSE;
+		    if (R_Include_Namespace)
+			contextNamespaceInfo(cptr, fun, &namespace, &exported);
 
+		    if (namespace) {
+			snprintf(itembuf, PROFITEMMAX-1, "%s%s%s",
+				 namespace,
+				 exported ? "::" : ":::",
+				 CHAR(PRINTNAME(fun)));
+		    } else {
+			snprintf(itembuf, PROFITEMMAX-1, "%s", CHAR(PRINTNAME(fun)));
+		    }
 		} else if ((CAR(fun) == R_DoubleColonSymbol ||
 			    CAR(fun) == R_TripleColonSymbol ||
 			    CAR(fun) == R_DollarSymbol) &&
@@ -397,7 +443,7 @@ static void R_EndProfiling(void)
 static void R_InitProfiling(SEXP filename, int append, double dinterval,
 			    int mem_profiling, int gc_profiling,
 			    int line_profiling, int filter_callframes,
-			    int numfiles, int bufsize)
+			    int include_namespace, int numfiles, int bufsize)
 {
 #ifndef Win32
     struct itimerval itv;
@@ -429,6 +475,7 @@ static void R_InitProfiling(SEXP filename, int append, double dinterval,
     R_Line_Profiling = line_profiling;
     R_GC_Profiling = gc_profiling;
     R_Filter_Callframes = filter_callframes;
+    R_Include_Namespace = include_namespace;
 
     if (line_profiling) {
 	/* Allocate a big RAW vector to use as a buffer.  The first len1 bytes are an array of pointers
@@ -474,7 +521,7 @@ SEXP do_Rprof(SEXP args)
 {
     SEXP filename;
     int append_mode, mem_profiling, gc_profiling, line_profiling,
-	filter_callframes;
+	include_namespace, filter_callframes;
     double dinterval;
     int numfiles, bufsize;
 
@@ -492,7 +539,8 @@ SEXP do_Rprof(SEXP args)
     mem_profiling = asLogical(CAR(args));     args = CDR(args);
     gc_profiling = asLogical(CAR(args));      args = CDR(args);
     line_profiling = asLogical(CAR(args));    args = CDR(args);
-    filter_callframes = asLogical(CAR(args));  args = CDR(args);
+    filter_callframes = asLogical(CAR(args)); args = CDR(args);
+    include_namespace = asLogical(CAR(args)); args = CDR(args);
     numfiles = asInteger(CAR(args));	      args = CDR(args);
     if (numfiles < 0)
 	error(_("invalid '%s' argument"), "numfiles");
@@ -504,7 +552,7 @@ SEXP do_Rprof(SEXP args)
     if (LENGTH(filename))
 	R_InitProfiling(filename, append_mode, dinterval, mem_profiling,
 			gc_profiling, line_profiling, filter_callframes,
-			numfiles, bufsize);
+			include_namespace, numfiles, bufsize);
     else
 	R_EndProfiling();
     return R_NilValue;
