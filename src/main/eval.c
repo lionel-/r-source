@@ -219,31 +219,41 @@ static RCNTXT * findProfContext(RCNTXT *cptr)
 static void contextNamespaceInfo(RCNTXT *cptr,
 				 SEXP funSym,
 				 const char **name,
-				 Rboolean *exported)
+				 const char **colon)
 {
     *name = NULL;
-    *exported = FALSE;
+    *colon = NULL;
 
     SEXP funClo = cptr->callfun;
     if (TYPEOF(funClo) != CLOSXP) {
 	*name = "base";
-	*exported = TRUE;
+	*colon = "::";
 	return;
     }
 
     SEXP env = CLOENV(funClo);
-    *name = R_NamespaceEnvName(env);
+    SEXP top = topenv(R_NilValue, env);
+    *name = R_NamespaceEnvName(top);
 
     if (*name != NULL) {
-	if (env == R_BaseNamespace) {
-	    *exported = TRUE;
+	/* Use `exists` variant of `findVarInFrame3()` to avoid
+	   executing active bindings from a signal handler. */
+	if (top == R_BaseNamespace) {
+	    /* There are no private functions in the base namespace
+	       but there might be private functions created within
+	       closures.  */
+	    if (existsVarInFrame(top, funSym))
+		*colon = "::";
+	    else
+		*colon = "::::";
 	} else {
 	    SEXP exports = PROTECT(R_NamespaceEnvExports(env));
-
-	    /* Use `exists` variant of `findVarInFrame3()` to avoid
-	       executing active bindings from a signal handler. */
-	    if (exports != R_NilValue)
-		*exported = existsVarInFrame(exports, funSym);
+	    if (exports != R_NilValue && existsVarInFrame(exports, funSym))
+		*colon = "::";
+	    else if (existsVarInFrame(top, funSym))
+		*colon = ":::";
+	    else
+		*colon = "::::";
 
 	    UNPROTECT(1);
 	}
@@ -297,14 +307,14 @@ static void doprof(int sig)  /* sig is ignored in Windows */
 
 		if (TYPEOF(fun) == SYMSXP) {
 		    const char *namespace = NULL;
-		    Rboolean exported = FALSE;
+		    const char *colon = NULL;
 		    if (R_Include_Namespace)
-			contextNamespaceInfo(cptr, fun, &namespace, &exported);
+			contextNamespaceInfo(cptr, fun, &namespace, &colon);
 
-		    if (namespace) {
+		    if (namespace && colon) {
 			snprintf(itembuf, PROFITEMMAX-1, "%s%s%s",
 				 namespace,
-				 exported ? "::" : ":::",
+				 colon,
 				 CHAR(PRINTNAME(fun)));
 		    } else {
 			snprintf(itembuf, PROFITEMMAX-1, "%s", CHAR(PRINTNAME(fun)));

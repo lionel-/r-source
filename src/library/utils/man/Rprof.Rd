@@ -35,8 +35,9 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   \item{include.namespace}{logical: include namespace of package
     functions in the profiles. Functions that inherit from a namespace
     (see \code{\link{topenv}}) are prefixed with the package name and
-    \code{:::} or \code{::}. Note that function names are never
-    backticked, so non-parsable expressions like
+    \code{:::} or \code{::}. Functions created within another package
+    function are prefixed with \code{::::}. Note that function names are
+    never backticked, so non-parsable expressions like
     \code{base:::[.data.frame} are possible.}
   \item{numfiles, bufsize}{integers: line profiling memory allocation}
 }
