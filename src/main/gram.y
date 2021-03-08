@@ -1171,19 +1171,21 @@ static SEXP xxbinary(SEXP n1, SEXP n2, SEXP n3)
     return ans;
 }
 
-static SEXP findPlaceholderCell(SEXP, SEXP);
+static void findPlaceholderCell(SEXP, SEXP, int *, SEXP *);
 
-static void check_rhs(SEXP rhs)
+static void check_rhs(SEXP rhs, Rboolean allow_special)
 {
     if (TYPEOF(rhs) != LANGSXP)
 	error(_("The pipe operator requires a function call as RHS"));
 
     /* rule out syntactically special functions */
     /* the IS_SPECIAL_SYMBOL bit is set in names.c */
-    SEXP fun = CAR(rhs);
-    if (TYPEOF(fun) == SYMSXP && IS_SPECIAL_SYMBOL(fun))
-	error("function '%s' not supported in RHS call of a pipe",
-	      CHAR(PRINTNAME(fun)));
+    if (!allow_special) {
+	SEXP fun = CAR(rhs);
+	if (TYPEOF(fun) == SYMSXP && IS_SPECIAL_SYMBOL(fun))
+	    error("function '%s' not supported in RHS call of a pipe",
+		  CHAR(PRINTNAME(fun)));
+    }
 }
 
 static SEXP xxpipe(SEXP lhs, SEXP rhs)
@@ -1194,15 +1196,21 @@ static SEXP xxpipe(SEXP lhs, SEXP rhs)
 	if (TYPEOF(rhs) == LANGSXP && CAR(rhs) == R_PipeBindSymbol) {
 	    SEXP var = CADR(rhs);
 	    SEXP expr = CADDR(rhs);
-	    check_rhs(expr);
-	    SEXP phcell = findPlaceholderCell(var, expr);
-	    if (phcell == NULL)
-		error(_("no placeholder found on RHS"));
+	    check_rhs(expr, TRUE);
+
+	    int count = 0;
+	    SEXP phcell = NULL;
+	    findPlaceholderCell(var, expr, &count, &phcell);
+	    if (!phcell)
+		errorcall(expr, _("no placeholder found on RHS"));
+	    if (count > 1)
+		errorcall(expr, _("pipe placeholder may only appear once"));
+
 	    SETCAR(phcell, lhs);
 	    return expr;
 	}
 
-	check_rhs(rhs);
+	check_rhs(rhs, FALSE);
 	
         SEXP fun = CAR(rhs);
         SEXP args = CDR(rhs);
@@ -4066,21 +4074,15 @@ static void NORET signal_ph_error(SEXP rhs, SEXP ph) {
 		     "argument in the RHS call"));
 }
     
-static SEXP findPlaceholderCell(SEXP placeholder, SEXP rhs)
+static void findPlaceholderCell(SEXP placeholder, SEXP expr, int *count, SEXP *phcell)
 {
-    SEXP phcell = NULL;
-    int count = 0;
-    if (checkForPlaceholder(placeholder, CAR(rhs)))
-	signal_ph_error(rhs, placeholder);
-    for (SEXP a = CDR(rhs); a != R_NilValue; a = CDR(a))
-	if (CAR(a) == placeholder) {
-	    if (phcell == NULL)
-		phcell = a;
-	    count++;
+    for (SEXP a = CDR(expr); a != R_NilValue; a = CDR(a)) {
+	SEXP head = CAR(a);
+	if (head == placeholder) {
+	    *phcell = a;
+	    (*count)++;
 	}
-	else if (checkForPlaceholder(placeholder, CAR(a)))
-	    signal_ph_error(rhs, placeholder);
-    if (count > 1)
-	errorcall(rhs, _("pipe placeholder may only appear once"));
-    return phcell;
+	else if (TYPEOF(head) == LANGSXP)
+	    findPlaceholderCell(placeholder, head, count, phcell);
+    }
 }

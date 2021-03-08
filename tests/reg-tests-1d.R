@@ -4790,6 +4790,37 @@ if (l10n_info()$"UTF-8") {
   stopifnot(grepl("d.faut", x)) # incorrectly FALSE in in R < 4.1
 }
 
+## pipebind supports complex calls
+stopifnot(
+    identical(
+	mtcars |> . => .$cyl,
+	mtcars$cyl
+    ),
+    identical(
+	mtcars |> . => .[[1]],
+	mtcars[[1]]
+    ),
+    identical(
+	mtcars |> . => .[[1]][[2]],
+	mtcars[[1]][[2]]
+    ),
+    identical(
+	1 |> . => { . + 1 },
+	2
+    ),
+    identical(
+	1 |> . => list(NULL, list(.)),
+	list(NULL, list(1))
+    ),
+    identical(
+	1 |> . => list(., list(2)),
+	list(1, list(2))
+    )
+)
+tools::assertError(parse(text = "1 |> . => list(., .)"))
+tools::assertError(parse(text = "1 |> . => list(., list(.))"))
+tools::assertError(parse(text = "1 |> . => list(list(.), list(.))"))
+
 ## keep at end
 rbind(last =  proc.time() - .pt,
       total = proc.time())
