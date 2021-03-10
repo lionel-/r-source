@@ -4805,21 +4805,60 @@ stopifnot(
 	mtcars[[1]][[2]]
     ),
     identical(
-	1 |> . => { . + 1 },
-	2
-    ),
-    identical(
 	1 |> . => list(NULL, list(.)),
 	list(NULL, list(1))
     ),
     identical(
 	1 |> . => list(., list(2)),
 	list(1, list(2))
+    ),
+    identical(
+	quote(x |> . => .@foo),
+	quote(x@foo)
+    ),
+    identical(
+	quote(x |> . => .[[1]][[2]]@foo$bar[[3]]),
+	quote(x[[1]][[2]]@foo$bar[[3]])
+    ),
+    identical(
+	quote(x |> . => .$y()),
+	quote(x$y())
+    ),
+    identical(
+	quote(x |> . => .$y()[[1]]),
+	quote(x$y()[[1]])
+    ),
+    identical(
+	quote(x |> . => .$y[[1]]()),
+	quote(x$y[[1]]())
     )
 )
+## pipebind disallows placeholder in RHS position
+tools::assertError(parse(text = "1 |> . => y$."))
+tools::assertError(parse(text = "1 |> . => y[.]"))
+tools::assertError(parse(text = "1 |> . => y[[.]]"))
+tools::assertError(parse(text = "1 |> . => y@."))
+local({
+    err <- tools::assertError(parse(text = "1 |> . => y$."))
+    stopifnot(
+	identical(err[[1]]$call, quote(y$.)),
+	identical(err[[1]]$message, "pipe placeholder cannot appear in the RHS of '$'")
+    )
+})
+## pipebind disallows non-subsetting special calls
+tools::assertError(parse(text = "X |> y => function(x) y"))
+tools::assertError(parse(text = "X |> y => y <- 2"))
+tools::assertError(parse(text = "X |> y => for (y in z) A"))
+tools::assertError(parse(text = "X |> y => for (x in z) y"))
+tools::assertError(parse(text = "X |> y => repeat y"))
+## pipebind disallows nested special calls
+tools::assertError(parse(text = "X |> . => list(x <- .)"))
+tools::assertError(parse(text = "X |> . => list(., x <- .)"))
+## pipebind disallows multiple placeholders
 tools::assertError(parse(text = "1 |> . => list(., .)"))
 tools::assertError(parse(text = "1 |> . => list(., list(.))"))
 tools::assertError(parse(text = "1 |> . => list(list(.), list(.))"))
+
 
 ## keep at end
 rbind(last =  proc.time() - .pt,

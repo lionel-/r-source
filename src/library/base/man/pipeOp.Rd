@@ -31,8 +31,12 @@
   \code{call} must contain one, and only one, occurrence of the placeholder
   \code{symbol} at top level, which is replaced by \code{lhs}.
 
-  To avoid ambiguities, functions in \code{rhs} calls may not be
-  syntactically special, such as \code{+} or \code{if}.
+  To avoid ambiguities and non-sensical code, functions in \code{rhs}
+  calls may not be syntactically special, such as \code{+} or \code{if}.
+  As an exception, it is allowed to pipe into the subsetting operators
+  \code{$}, \code{@}, \code{[} and \code{[[} or any combination of
+  those. This requires using `=>` and a place holder, for instance
+  \code{foo |> x => x[[1]]} or \code{foo |> x => x$bar[[1]]}.
   
   Pipe notation allows a nested sequence of calls to be written in a way
   that may make the sequence of processing steps easier to follow.
@@ -71,7 +75,11 @@ quote(mtcars |> subset(cyl == 4) |> nrow())
 quote(x |> y => log(y))
 
 # regular R evaluation semantics apply
-stop() |> (function(...) {})() # stop() is not used on RHS so is not evaluated
+ignore <- function(...) "value"
+stop() |> ignore() # stop() is not used on RHS so is not evaluated
+
+# you can pipe into subsetting operators using a placeholder:
+mtcars |> head() |> x => x$cyl
 }
 \keyword{programming}
 \keyword{data}
