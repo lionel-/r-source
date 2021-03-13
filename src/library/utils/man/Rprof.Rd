@@ -13,7 +13,8 @@
 Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
        memory.profiling = FALSE, gc.profiling = FALSE,
        line.profiling = FALSE, filter.callframes = FALSE,
-       numfiles = 100L, bufsize = 10000L)
+       include.namespace = FALSE, numfiles = 100L,
+       bufsize = 10000L)
 }
 \arguments{
   \item{filename}{
@@ -31,6 +32,13 @@ Rprof(filename = "Rprof.out", append = FALSE, interval = 0.02,
   \item{line.profiling}{logical:  write line locations to the file?}
   \item{filter.callframes}{logical: filter out intervening call frames
     of the call tree. See the filtering out call frames section.}
+  \item{include.namespace}{logical: include namespace of package
+    functions in the profiles. Functions that inherit from a namespace
+    (see \code{\link{topenv}}) are prefixed with the package name and
+    \code{:::} or \code{::}. Functions created within another package
+    function are prefixed with \code{::::}. Note that function names are
+    never backticked, so non-parsable expressions like
+    \code{base:::[.data.frame} are possible.}
   \item{numfiles, bufsize}{integers: line profiling memory allocation}
 }
 \details{

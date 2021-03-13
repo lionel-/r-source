@@ -1049,7 +1049,7 @@ SEXP findVarInFrame3(SEXP rho, SEXP symbol, Rboolean doGet)
 
 /* This variant of findVarinFrame3 is needed to avoid running active
    binding functions in calls to exists() with mode = "any" */
-static Rboolean existsVarInFrame(SEXP rho, SEXP symbol)
+Rboolean attribute_hidden existsVarInFrame(SEXP rho, SEXP symbol)
 {
     int hashcode;
     SEXP frame, c;
@@ -3671,10 +3671,10 @@ SEXP R_FindPackageEnv(SEXP info)
     return val;
 }
 
-Rboolean R_IsNamespaceEnv(SEXP rho)
+const char* attribute_hidden R_NamespaceEnvName(SEXP rho)
 {
     if (rho == R_BaseNamespace)
-	return TRUE;
+	return "base";
     else if (TYPEOF(rho) == ENVSXP) {
 	SEXP info = findVarInFrame3(rho, R_NamespaceSymbol, TRUE);
 	if (info != R_UnboundValue && TYPEOF(info) == ENVSXP) {
@@ -3683,13 +3683,18 @@ Rboolean R_IsNamespaceEnv(SEXP rho)
 	    UNPROTECT(1);
 	    if (spec != R_UnboundValue &&
 		TYPEOF(spec) == STRSXP && LENGTH(spec) > 0)
-		return TRUE;
+		return CHAR(STRING_ELT(spec, 0));
 	    else
-		return FALSE;
+		return NULL;
 	}
-	else return FALSE;
+	else return NULL;
     }
-    else return FALSE;
+    else return NULL;
+}
+
+Rboolean R_IsNamespaceEnv(SEXP rho)
+{
+    return R_NamespaceEnvName(rho) != NULL;
 }
 
 SEXP attribute_hidden do_isNSEnv(SEXP call, SEXP op, SEXP args, SEXP rho)
@@ -3851,19 +3856,24 @@ static SEXP callR1(SEXP fun, SEXP arg)
     return val;
 }
 
+SEXP attribute_hidden R_NamespaceEnvExports(SEXP env)
+{
+    SEXP info = findVarInFrame3(env, R_NamespaceSymbol, FALSE);
+    if (info == R_UnboundValue)
+	return R_NilValue;
+
+    PROTECT(info);
+    SEXP exports = findVarInFrame3(info, R_exportsSymbol, FALSE);
+    UNPROTECT(1);
+
+    if (exports == R_UnboundValue)
+	return R_NilValue;
+    else
+	return exports;
+}
+
 SEXP attribute_hidden R_getNSValue(SEXP call, SEXP ns, SEXP name, int exported)
 {
-    static SEXP R_loadNamespaceSymbol = NULL;
-    static SEXP R_exportsSymbol = NULL;
-    static SEXP R_lazydataSymbol = NULL;
-    static SEXP R_getNamespaceNameSymbol = NULL;
-    if (R_loadNamespaceSymbol == NULL) {
-	R_loadNamespaceSymbol = install("loadNamespace");
-	R_exportsSymbol = install("exports");
-	R_lazydataSymbol = install("lazydata");
-	R_getNamespaceNameSymbol = install("getNamespaceName");
-    }
-
     if (R_IsNamespaceEnv(ns))
 	PROTECT(ns);
     else {
