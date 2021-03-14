@@ -4831,6 +4831,14 @@ stopifnot(
     identical(
 	quote(x |> . => .$y[[1]]()),
 	quote(x$y[[1]]())
+    ),
+    identical(
+	quote(x |> . => f(~foo, .)),
+	quote(f(~foo, x))
+    ),
+    identical(
+	quote(x |> . => f(., -1)),
+	quote(f(x, -1))
     )
 )
 ## pipebind disallows placeholder in RHS position
@@ -4842,7 +4850,12 @@ local({
     err <- tools::assertError(parse(text = "1 |> . => y$."))
     stopifnot(
 	identical(err[[1]]$call, quote(y$.)),
-	identical(err[[1]]$message, "pipe placeholder cannot appear in the RHS of '$'")
+	identical(err[[1]]$message, "pipe placeholder '.' cannot be used as the RHS of '$'")
+    )
+    err <- tools::assertError(parse(text = "mtcars |> . => lm(disp ~ ., data = .)"))
+    stopifnot(
+	identical(err[[1]]$call, quote(lm(disp ~ ., data = .))),
+	identical(err[[1]]$message, "pipe placeholder '.' cannot be used with function '~'")
     )
 })
 ## pipebind disallows non-subsetting special calls

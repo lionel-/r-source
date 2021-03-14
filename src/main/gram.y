@@ -4146,7 +4146,8 @@ static void findPlaceholderCellElement(SEXP call,
     if (elt == placeholder) {
 	if (specialCall != R_NilValue)
 	    errorcall(call,
-		      _("pipe placeholder cannot appear in the RHS of '%s'"),
+		      _("pipe placeholder '%s' cannot be used as the RHS of '%s'"),
+		      CHAR(PRINTNAME(placeholder)),
 		      CHAR(PRINTNAME(CAR(specialCall))));
 	*phcell = cell;
 	(*count)++;
@@ -4158,10 +4159,17 @@ static void findPlaceholderCellElement(SEXP call,
 
     SEXP fun = CAR(elt);
     if (isSpecialSymbol(fun))
-	if (specialIsPipeBindable(fun))
+	if (specialIsPipeBindable(fun)) {
 	    findPlaceholderCell(call, placeholder, elt, TRUE, count, phcell);
-	else
-	    stopPipeBindSpecialCall(call, fun);
+	} else {
+	    int curr = *count;
+	    findPlaceholderCell(call, placeholder, elt, FALSE, count, phcell);
+	    if (*count != curr)
+		errorcall(call,
+			  _("pipe placeholder '%s' cannot be used with function '%s'"),
+			  CHAR(PRINTNAME(placeholder)),
+			  CHAR(PRINTNAME(fun)));
+	}
     else
 	findPlaceholderCell(call, placeholder, elt, FALSE, count, phcell);
 }
