@@ -187,6 +187,7 @@ static SEXP	TagArg(SEXP, SEXP, YYLTYPE *);
 static int 	processLineDirective();
 
 static SEXP R_PipeBindSymbol = NULL;
+static SEXP R_AtsignSymbol = NULL;
 
 /* These routines allocate constants */
 
@@ -1171,18 +1172,12 @@ static SEXP xxbinary(SEXP n1, SEXP n2, SEXP n3)
     return ans;
 }
 
-static void findPlaceholderCell(SEXP, SEXP, SEXP, Rboolean, int *, SEXP *);
-static void findPlaceholderCellElement(SEXP, SEXP, SEXP, SEXP, int *, SEXP *);
-static Rboolean isSpecialSymbol(SEXP);
-static Rboolean specialIsPipeBindable(SEXP);
+static SEXP findPlaceholderCell(SEXP, SEXP);
 
-/* Ideally `call` would include `=>`. However it is not currently
-   printable in infix form so we pass the RHS. */
-static void NORET stopPipeBindSpecialCall(SEXP call, SEXP fun)
+static Rboolean isSpecialSymbol(SEXP x)
 {
-    errorcall(call,
-	      "function '%s' not supported in RHS call of a pipe",
-	      CHAR(PRINTNAME(fun)));
+    /* the IS_SPECIAL_SYMBOL bit is set in names.c */
+    return TYPEOF(x) == SYMSXP && IS_SPECIAL_SYMBOL(x);
 }
 
 static void check_rhs(SEXP rhs)
@@ -1190,32 +1185,11 @@ static void check_rhs(SEXP rhs)
     if (TYPEOF(rhs) != LANGSXP)
 	error(_("The pipe operator requires a function call as RHS"));
 
-    SEXP fun = CAR(rhs);
-
     /* rule out syntactically special functions */
-    /* the IS_SPECIAL_SYMBOL bit is set in names.c */
-    if (isSpecialSymbol(fun))
-	stopPipeBindSpecialCall(rhs, fun);
-}
-
-/* Returns TRUE if `rhs` is a call to a subset operator, FALSE if
-   `rhs` is a normal call, and throws with other special operators. */
-static Rboolean checkRHSBind(SEXP rhs)
-{
-    if (TYPEOF(rhs) != LANGSXP)
-	error(_("The pipe operator requires a function call as RHS"));
-
     SEXP fun = CAR(rhs);
-
-    if (!isSpecialSymbol(fun))
-	return FALSE;
-
-    /* Allow subset operators. */
-    if (specialIsPipeBindable(fun))
-	return TRUE;
-
-    /* Rule out syntactically special functions. */
-    stopPipeBindSpecialCall(rhs, fun);
+    if (TYPEOF(fun) == SYMSXP && IS_SPECIAL_SYMBOL(fun))
+	error("function '%s' not supported in RHS call of a pipe",
+	      CHAR(PRINTNAME(fun)));
 }
 
 static SEXP xxpipe(SEXP lhs, SEXP rhs)
@@ -1226,22 +1200,15 @@ static SEXP xxpipe(SEXP lhs, SEXP rhs)
 	if (TYPEOF(rhs) == LANGSXP && CAR(rhs) == R_PipeBindSymbol) {
 	    SEXP var = CADR(rhs);
 	    SEXP expr = CADDR(rhs);
-	    Rboolean special = checkRHSBind(expr);
-
-	    int count = 0;
-	    SEXP phcell = NULL;
-	    findPlaceholderCell(expr, var, expr, special, &count, &phcell);
-	    if (!phcell)
-		errorcall(expr, _("no placeholder found on RHS"));
-	    if (count > 1)
-		errorcall(expr, _("pipe placeholder may only appear once"));
-
+	    SEXP phcell = findPlaceholderCell(expr, var);
+	    if (phcell == NULL)
+		errorcall(expr,
+			  _("no top-level placeholder found on pipe RHS"));
 	    SETCAR(phcell, lhs);
 	    return expr;
 	}
 
 	check_rhs(rhs);
-	
         SEXP fun = CAR(rhs);
         SEXP args = CDR(rhs);
 	PRESERVE_SV(ans = lcons(fun, lcons(lhs, args)));
@@ -1486,6 +1453,7 @@ void InitParser(void)
     R_PreserveObject(ParseState.sexps); /* never released in an R session */
     R_NullSymbol = install("NULL");
     R_PipeBindSymbol = install("=>");
+    R_AtsignSymbol = install("@");
 }
 
 static void FinalizeSrcRefStateOnError(void *dummy)
@@ -4104,92 +4072,67 @@ static void NORET signal_ph_error(SEXP rhs, SEXP ph) {
 		     "argument in the RHS call"));
 }
 
-static void findPlaceholderCell(SEXP call,
-				SEXP placeholder,
-				SEXP expr,
-				Rboolean special,
-				int *count,
-				SEXP *phcell)
+static void checkNoToplevelPlaceholder(SEXP expr, SEXP args, SEXP var)
 {
-    /* Traverse first elements to allow calls like `x => x$foo()` */
-    findPlaceholderCellElement(call, placeholder, expr, R_NilValue, count, phcell);
-
-    SEXP a = CDR(expr);
-
-    /* The placeholder is only allowed on the LHS of subsetting
-       operators (the only special calls allowed). We hard-code
-       `specialCall to NULL here (see comment below). */
-    if (special) {
-	findPlaceholderCellElement(call, placeholder, a, R_NilValue, count, phcell);
-	a = CDR(a);
-    }
-
-    /* If we are exploring the arguments of a special operator, set
-       the special call. This instructs `findPlaceholderCellElement()`
-       to throw an error if the placeholder is found in those cells.
-       The call is also used to make the error message informative. */
-    SEXP specialCall = special ? expr : R_NilValue;
-
-    for (; a != R_NilValue; a = CDR(a))
-	findPlaceholderCellElement(call, placeholder, a, specialCall, count, phcell);
+    for (SEXP a = args; a != R_NilValue; a = CDR(a))
+	if (CAR(a) == var)
+	    errorcall(expr, _("pipe placeholder '%s' may only appear once"),
+		      CHAR(PRINTNAME(var)));
 }
 
-static void findPlaceholderCellElement(SEXP call,
-				       SEXP placeholder,
-				       SEXP cell,
-				       SEXP specialCall,
-				       int *count,
-				       SEXP *phcell)
+static SEXP findArgsPlaceholderCell(SEXP expr, SEXP var)
 {
-    SEXP elt = CAR(cell);
-
-    if (elt == placeholder) {
-	if (specialCall != R_NilValue)
-	    errorcall(call,
-		      _("pipe placeholder '%s' cannot be used as the RHS of '%s'"),
-		      CHAR(PRINTNAME(placeholder)),
-		      CHAR(PRINTNAME(CAR(specialCall))));
-	*phcell = cell;
-	(*count)++;
-	return;
-    }
-
-    if (TYPEOF(elt) != LANGSXP)
-	return;
-
-    SEXP fun = CAR(elt);
-    if (isSpecialSymbol(fun))
-	if (specialIsPipeBindable(fun)) {
-	    findPlaceholderCell(call, placeholder, elt, TRUE, count, phcell);
-	} else {
-	    int curr = *count;
-	    findPlaceholderCell(call, placeholder, elt, FALSE, count, phcell);
-	    if (*count != curr)
-		errorcall(call,
-			  _("pipe placeholder '%s' cannot be used with function '%s'"),
-			  CHAR(PRINTNAME(placeholder)),
-			  CHAR(PRINTNAME(fun)));
+    for (SEXP a = CDR(expr); a != R_NilValue; a = CDR(a)) {
+	if (CAR(a) == var) {
+	    checkNoToplevelPlaceholder(expr, CDR(a), var);
+	    return a;
 	}
-    else
-	findPlaceholderCell(call, placeholder, elt, FALSE, count, phcell);
-}
-
-
-static Rboolean isSpecialSymbol(SEXP x)
-{
-    return TYPEOF(x) == SYMSXP && IS_SPECIAL_SYMBOL(x);
-}
-
-/* Input is necessarily a symbol for a special-syntax call so we only
-   need to look at the first char */
-static Rboolean specialIsPipeBindable(SEXP sym)
-{
-    switch (CHAR(PRINTNAME(sym))[0]) {
-    case '$':
-    case '@':
-    case '[': /* covers `[[` case as well */
-	return TRUE;
-    default:
-	return FALSE;
     }
+    return NULL;
+}
+
+static SEXP findSubscriptPlaceholderCell(SEXP expr, SEXP var, int checkargs)
+{
+    SEXP x = CADR(expr);
+    SEXP phcell = NULL;
+    if (x == var)
+	phcell = CDR(expr);
+    else if (TYPEOF(x) == LANGSXP)
+	phcell = findPlaceholderCell(x, var);
+    if (phcell == NULL)
+	errorcall(expr,
+		  _("'%s' only supported on pipe RHS when "
+		    "extracting from placholder '%s'"),
+		  CHAR(PRINTNAME(CAR(expr))), CHAR(PRINTNAME(var)));
+    if (checkargs)
+	checkNoToplevelPlaceholder(expr, CDDR(expr), var);
+    return phcell;
+}
+
+static SEXP findPlaceholderCell(SEXP expr, SEXP var)
+{
+    if (TYPEOF(expr) != LANGSXP)
+	error(_("The pipe operator requires a function call as RHS"));
+
+    SEXP fun = CAR(expr);
+    if (fun == var)
+	return expr;
+    else if (TYPEOF(fun) == LANGSXP) {
+	SEXP phcell = findPlaceholderCell(fun, var);
+	if (phcell != NULL) {
+	    checkNoToplevelPlaceholder(expr, CDR(expr), var);
+	    return phcell;
+	}
+	return findArgsPlaceholderCell(expr, var);
+    }
+    else if (fun == R_DollarSymbol || fun == R_AtsignSymbol)
+	return findSubscriptPlaceholderCell(expr, var, FALSE);
+    else if (fun == R_BracketSymbol || fun == R_Bracket2Symbol)
+	return findSubscriptPlaceholderCell(expr, var, TRUE);
+    else if (isSpecialSymbol(fun)) {
+	error(_("function '%s' not supported in RHS call of a pipe"),
+	      CHAR(PRINTNAME(fun)));
+    }
+    else
+	return findArgsPlaceholderCell(expr, var);
 }
