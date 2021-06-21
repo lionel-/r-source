@@ -187,7 +187,9 @@ static SEXP	TagArg(SEXP, SEXP, YYLTYPE *);
 static int 	processLineDirective();
 
 static int HavePipeBind = FALSE; 
+static int HavePlaceholder = FALSE; 
 static SEXP R_PipeBindSymbol = NULL;
+static SEXP R_AtSymbol = NULL;
 
 /* These routines allocate constants */
 
@@ -356,6 +358,7 @@ static SEXP	xxfuncall(SEXP, SEXP);
 static SEXP	xxdefun(SEXP, SEXP, SEXP, YYLTYPE *);
 static SEXP	xxpipe(SEXP, SEXP);
 static SEXP	xxpipebind(SEXP, SEXP, SEXP);
+static SEXP	xxplaceholder();
 static SEXP	xxunary(SEXP, SEXP);
 static SEXP	xxbinary(SEXP, SEXP, SEXP);
 static SEXP	xxparen(SEXP, SEXP);
@@ -433,6 +436,7 @@ expr	: 	NUM_CONST			{ $$ = $1;	setId(@$); }
 	|	STR_CONST			{ $$ = $1;	setId(@$); }
 	|	NULL_CONST			{ $$ = $1;	setId(@$); } 
 	|	SYMBOL				{ $$ = $1;	setId(@$); }
+	|	'@'				{ $$ = xxplaceholder();	setId(@$); }
 
 	|	'{' exprlist '}'		{ $$ = xxexprlist($1,&@1,$2); setId(@$); }
 	|	'(' expr_or_assign_or_help ')'	{ $$ = xxparen($1,$2);	setId(@$); }
@@ -1230,6 +1234,22 @@ static SEXP xxpipebind(SEXP fn, SEXP lhs, SEXP rhs)
 	error("'=>' is disabled; set '_R_USE_PIPEBIND_' envvar to a true value to enable it");
 }
 
+static SEXP xxplaceholder()
+{
+    static int use_placeholder = 0;
+    if (use_placeholder != 1) {
+	char *lookup = getenv("_R_USE_PLACEHOLDER_");
+	use_placeholder = ((lookup != NULL) && StringTrue(lookup)) ? 1 : 0;
+    }
+
+    HavePlaceholder = TRUE;
+
+    if (use_placeholder)
+	return R_AtSymbol;
+    else
+	error("'@' is disabled; set '_R_USE_PLACEHOLDER_' envvar to a true value to enable it");
+}
+
 static SEXP xxparen(SEXP n1, SEXP n2)
 {
     SEXP ans;
@@ -1462,6 +1482,7 @@ void InitParser(void)
     R_PreserveObject(ParseState.sexps); /* never released in an R session */
     R_NullSymbol = install("NULL");
     R_PipeBindSymbol = install("=>");
+    R_AtSymbol = install("@");
 }
 
 static void FinalizeSrcRefStateOnError(void *dummy)
@@ -1585,6 +1606,7 @@ static void ParseInit(void)
     xxcharcount = 0;
     npush = 0;
     HavePipeBind = FALSE;
+    HavePlaceholder = FALSE;
 }
 
 static void initData(void)
@@ -1603,17 +1625,24 @@ static void ParseContextInit(void)
     initData();
 }
 
-static int checkForPipeBind(SEXP arg)
+static void checkForUnparsable(SEXP expr, SEXP arg)
 {
-    if (! HavePipeBind)
-    	return FALSE;
-    else if (arg == R_PipeBindSymbol)
-	return TRUE;
-    else if (TYPEOF(arg) == LANGSXP)
+    if (! HavePipeBind && ! HavePlaceholder)
+    	return;
+
+    if (arg == R_PipeBindSymbol)
+	errorcall(expr,
+		  _("pipe bind symbol may only appear "
+		    "in pipe expressions"));
+
+    if (arg == R_AtSymbol)
+	errorcall(expr,
+		  _("placeholder symbol may only appear "
+		    "in pipe expressions"));
+
+    if (TYPEOF(arg) == LANGSXP)
 	for (SEXP cur = arg; cur != R_NilValue; cur = CDR(cur))
-	    if (checkForPipeBind(CAR(cur)))
-		return TRUE;
-    return FALSE;
+	    checkForUnparsable(expr, CAR(cur));
 }
 
 static SEXP R_Parse1(ParseStatus *status)
@@ -1632,10 +1661,7 @@ static SEXP R_Parse1(ParseStatus *status)
 	break;
     case 3:                     /* Valid expr '\n' terminated */
     case 4:                     /* Valid expr ';' terminated */
-        if (checkForPipeBind(R_CurrentExpr))
-	    errorcall(R_CurrentExpr,
-		      _("pipe bind symbol may only appear "
-			"in pipe expressions"));
+        checkForUnparsable(R_CurrentExpr, R_CurrentExpr);
 	*status = PARSE_OK;
 	break;
     }
